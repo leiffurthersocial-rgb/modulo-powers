@@ -82,12 +82,16 @@ export class Guard {
   private tmp = new THREE.Vector3();
   private tmp2 = new THREE.Vector3();
   private lastShout = 0;
+  private attackCd = 0;
+  /** Knockback velocity from hits. */
+  private kb = new THREE.Vector3();
+  private facingV = new THREE.Vector3();
 
   constructor(
     private game: Game,
     private spec: PropSpec,
     private waypoints: THREE.Vector3[],
-    private catchSpawn: THREE.Vector3,
+    _catchSpawn: THREE.Vector3,
   ) {
     const world = game.physics.world;
     this.pos.set(spec.x, spec.y, spec.z);
@@ -114,6 +118,14 @@ export class Guard {
     this.entity.tags.add('guard');
     this.entity.spec = spec;
     this.entity.onDamage = (n, kind) => this.damage(n, kind);
+    this.entity.facing = () => this.facingV.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    this.entity.aware = () => this.state === 'alert';
+    this.entity.onImpulse = (x, y, z) => {
+      this.kb.x += x / 80;
+      this.kb.z += z / 80;
+      this.vy = Math.max(this.vy, y / 80);
+      if (Math.hypot(x, z) / 80 > 6) this.entity.stun = Math.max(this.entity.stun, 0.8);
+    };
     this.entity.update = (dt) => this.fixedUpdate(dt);
 
     this.icon = new THREE.Sprite(icons().suspicious);
@@ -310,7 +322,13 @@ export class Guard {
       target = this.chasing === 'player' && seen ? g.player.curPos : this.lastKnown;
       speed = 4.3;
       // Caught the player?
-      if (this.chasing === 'player' && this.pos.distanceTo(g.player.feet(this.tmp)) < 1.5) this.catchPlayer();
+      this.attackCd -= dt;
+      if (this.chasing === 'player' && this.pos.distanceTo(g.player.feet(this.tmp)) < 1.7 && this.attackCd <= 0) {
+        this.attackCd = 1.1;
+        this.avatar.aimTarget = 1;
+        audio.whoosh(this.pos, 0.5, 1.2);
+        g.damagePlayer(9, this.pos, 4);
+      }
       if (this.chasing === 'decoy' && this.pos.distanceTo(this.lastKnown) < 1.4) {
         // Reached the decoy — it's not real.
         this.state = 'searching';
@@ -336,8 +354,9 @@ export class Guard {
   }
 
   private move(dt: number, speed: number) {
-    const fx = -Math.sin(this.yaw) * speed * dt;
-    const fz = -Math.cos(this.yaw) * speed * dt;
+    const fx = -Math.sin(this.yaw) * speed * dt + this.kb.x * dt;
+    const fz = -Math.cos(this.yaw) * speed * dt + this.kb.z * dt;
+    this.kb.multiplyScalar(Math.max(0, 1 - dt * 5));
     this.vy = this.kcc.computedGrounded() ? -1 : this.vy + PHYSICS.gravity * dt;
     const col = this.entity.colliders[0];
     this.kcc.computeColliderMovement(col, { x: fx, y: this.vy * dt, z: fz }, RAPIER.QueryFilterFlags.EXCLUDE_SENSORS, groups(G.NPC, ALL_GROUPS & ~G.SENSOR & ~G.DEBRIS & ~G.PLAYER));
@@ -362,16 +381,6 @@ export class Guard {
     if (this.chasing === 'player') this.game.toasts.show('Spotted!', '#ff4a3a');
     // Alert nearby guards.
     this.game.stealth.noise(this.pos, 20);
-  }
-
-  private catchPlayer() {
-    const g = this.game;
-    g.toasts.show('Caught by a guard! Back to the gate.', '#ff4a3a', 2200);
-    audio.tone({ volume: 0.4, freq: 220, freqEnd: 110, decay: 0.6, type: 'sawtooth' });
-    g.rig.shake(0.3);
-    const spot = g.player.findFreeSpot(this.catchSpawn) ?? this.catchSpawn;
-    g.player.teleport(spot);
-    g.guards.calmAll();
   }
 
   calm() {

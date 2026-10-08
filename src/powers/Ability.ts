@@ -103,8 +103,16 @@ export abstract class Ability {
   // Input plumbing (called by PowerManager).
   // ---------------------------------------------------------------------------
 
+  /** Can be used while Zetsu (aura suppression) is active. */
+  allowInZetsu = false;
+
   press() {
     const energy = this.game.energy;
+    if (this.game.zetsu && !this.allowInZetsu) {
+      this.game.denied(this);
+      this.game.toasts.show('Zetsu is suppressing your aura');
+      return;
+    }
     if (this.mode === 'toggle' && this.active) {
       this.active = false;
       this.end(1);

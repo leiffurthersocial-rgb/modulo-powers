@@ -2,7 +2,7 @@ import type { Action } from '../config/keybindings';
 import type { Game } from '../core/Game';
 import type { Power } from './Power';
 
-const ABILITY_ACTIONS: Action[] = ['ability1', 'ability2', 'ability3', 'ability4'];
+const ABILITY_ACTIONS: Action[] = ['ability1', 'ability2', 'ability3', 'ability4', 'ability5', 'ability6'];
 
 /**
  * Holds all powers, the current selection, and routes ability input.
@@ -40,7 +40,7 @@ export class PowerManager {
   handleInput(enabled: boolean) {
     const input = this.game.input;
     const p = this.current;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < ABILITY_ACTIONS.length; i++) {
       const a = p.abilities[i];
       if (!a) continue;
       const act = ABILITY_ACTIONS[i];

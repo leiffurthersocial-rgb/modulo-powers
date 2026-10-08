@@ -6,6 +6,7 @@ import { CameraRig } from '../player/CameraRig';
 import { Avatar } from '../player/Avatar';
 import { Hands } from '../player/Hands';
 import { PlayerController } from '../player/PlayerController';
+import { Health } from '../player/Health';
 import type { Ability } from '../powers/Ability';
 import { Energy } from '../powers/Energy';
 import { createPowers } from '../powers';
@@ -42,6 +43,8 @@ import { Reactions } from '../systems/Reactions';
 import { StealthSystem } from '../systems/Stealth';
 import type { SurfaceKind } from '../config/reactions';
 import { ProjectileSystem } from '../powers/common';
+import { CombatSystem } from '../powers/combat';
+import { DamageNumbers } from '../ui/DamageNumbers';
 import { StaticBuilder } from '../world/zones/build';
 import { buildEarthStatic, spawnEarth } from '../world/zones/earth';
 import { buildExtrasStatic, spawnExtras } from '../world/zones/extras';
@@ -88,6 +91,17 @@ export class Game {
   readonly hands: Hands;
   readonly avatar: Avatar;
   readonly energy = new Energy();
+  readonly health = new Health();
+  /** Outgoing melee damage multiplier (Ren, Godspeed...). */
+  damageBoost = 1;
+  /** Nen Zetsu active: aura suppressed, other abilities disabled. */
+  zetsu = false;
+  /** Footsteps are silent (Assassin mode). */
+  silent = false;
+  /** Player is fully invisible (no body or shadow drawn). */
+  playerHidden = false;
+  combat!: CombatSystem;
+  damageNumbers!: DamageNumbers;
   readonly powers: PowerManager;
   readonly hud: Hud;
   readonly toasts: Toasts;
@@ -111,6 +125,8 @@ export class Game {
   readonly signals = new Signals();
   interaction!: InteractionSystem;
   guards!: GuardSystem;
+  /** Fight arena (set up by the arena builder). */
+  arena: { playerDied(): void } | null = null;
   checkpoints!: Checkpoints;
   /** Materials of walls the player can phase through (ghosted while phasing). */
   readonly phaseMaterials = new Set<THREE.Material>();
@@ -193,6 +209,9 @@ export class Game {
 
     this.hud = new Hud(ui);
     this.toasts = new Toasts(ui);
+    this.damageNumbers = new DamageNumbers(this.hud.root);
+    this.combat = new CombatSystem(this);
+    this.systems.push(this.combat);
     this.stealth = new StealthSystem(this);
     this.interaction = new InteractionSystem(this);
     this.systems.push(this.stealth, this.signals, this.interaction);
@@ -429,6 +448,8 @@ export class Game {
       case 'power3':
       case 'power4':
       case 'power5':
+      case 'power6':
+      case 'power7':
         this.powers.select(Number(a.slice(5)) - 1);
         audio.uiClick(true);
         break;
@@ -441,8 +462,7 @@ export class Game {
         audio.uiClick();
         break;
       case 'infiniteEnergy':
-        this.energy.infinite = !this.energy.infinite;
-        this.toasts.show(this.energy.infinite ? 'Infinite energy ON' : 'Infinite energy OFF');
+        this.setSandbox(!this.energy.infinite);
         break;
       case 'reset':
         this.resetMap();
@@ -477,6 +497,7 @@ export class Game {
     this.player.teleport(this.world.spawn);
     this.rig.setLook(0, -0.05);
     this.energy.refill();
+    this.health.refill();
     time.scale = 1;
     audio.rate = 1;
     this.toasts.show('Full reset');
@@ -516,20 +537,57 @@ export class Game {
     return out;
   }
 
-  /** Electric shock on the player: flash, shake, a jolt, no lasting harm. */
-  shockPlayer(amount: number, from?: THREE.Vector3) {
-    if (this.shielded) {
-      audio.crackle(this.player.curPos, 0.3);
-      return;
+  /**
+   * The player is immune to their own powers: their own electricity only
+   * crackles harmlessly around them.
+   */
+  shockPlayer(_amount: number, _from?: THREE.Vector3) {
+    audio.crackle(this.player.curPos, 0.25);
+    this.particles.emit(FX.electric, this.player.curPos, 6, { spread: Math.PI, speed: [1, 3], jitter: 0.4 });
+  }
+
+  /** Sandbox mode: infinite energy + no damage, health bar hidden. */
+  setSandbox(on: boolean) {
+    this.energy.infinite = on;
+    this.health.godMode = on;
+    this.hud.setHealthVisible(!on);
+    this.toasts.show(on ? 'Sandbox mode ON — no damage, infinite energy' : 'Sandbox mode OFF');
+  }
+
+  /**
+   * Damage from an enemy (or a huge fall). `from` gives knockback direction.
+   * Returns the damage actually taken.
+   */
+  damagePlayer(amount: number, from?: THREE.Vector3, knockback = 0): number {
+    const taken = this.health.damage(amount);
+    if (taken <= 0) return 0;
+    this.hud.hurt(Math.min(1, taken / 25));
+    this.rig.shake(Math.min(0.6, 0.15 + taken / 40));
+    audio.noiseBurst({ volume: 0.5, decay: 0.15, freq: 900, freqEnd: 200, brown: true });
+    audio.tone({ volume: 0.2, freq: 180, freqEnd: 90, decay: 0.2, type: 'square' });
+    if (from && knockback > 0) {
+      const dir = this.tmp.copy(this.player.curPos).sub(from).setY(0).normalize().multiplyScalar(knockback);
+      dir.y = knockback * 0.35;
+      this.player.thrust(dir);
     }
-    this.rig.shake(0.25 + amount * 0.5);
-    this.rig.addFlash(0.25 + amount * 0.4);
-    audio.crackle(this.player.curPos, 0.8);
-    const push = this.tmp.set(0, 2 + amount * 3, 0);
-    if (from) push.add(this.tmp2.copy(this.player.curPos).sub(from).setY(0).normalize().multiplyScalar(3 * amount));
-    this.player.addVelocity(push);
-    this.particles.emit(FX.electric, this.player.curPos, 20, { spread: Math.PI, speed: [1, 4], jitter: 0.5 });
-    this.energy.drain(8 * amount);
+    if (this.health.dead) this.die();
+    return taken;
+  }
+
+  private die() {
+    this.toasts.show('You were defeated! Respawning…', '#ff4a3a', 2000);
+    this.rig.addFlash(0.6);
+    this.hud.hurt(1);
+    audio.tone({ volume: 0.4, freq: 220, freqEnd: 70, decay: 1.2, type: 'sawtooth' });
+    this.powers.cancelAll();
+    setTimeout(() => {
+      const spot = this.player.findFreeSpot(this.checkpoint) ?? this.world.spawn;
+      this.player.teleport(spot);
+      this.health.refill();
+      this.health.invuln = 2;
+      this.energy.refill();
+      this.arena?.playerDied();
+    }, 1200);
   }
 
   /** Slippery ice underfoot, heat from nearby fire. */
@@ -544,9 +602,26 @@ export class Game {
     p.onLand = (speed) => {
       this.rig.land(speed);
       audio.land(p.feet(this.tmp), Math.min(1, speed / 15));
+      // Superhero landing: big drops slam the ground and push things away.
+      if (speed > 17) {
+        const f = p.feet(this.tmp2);
+        const k = Math.min(1, (speed - 17) / 15);
+        this.particles.emit(FX.dust, f, 20 + k * 30, { spread: 1.5, speed: [2, 6], jitter: 0.6, sizeMul: 1 + k });
+        this.decals.add('crack', f, UP, 2 + k * 3, 30);
+        this.reactions.applyArea('earth', f, 3 + k * 3, 0.3 + k, { impulse: 150 + k * 500, surfaces: false });
+        audio.rumble(f, 0.4 + k * 0.6, 0.6);
+      }
+      // Only truly enormous falls hurt (and never in Stone Armor).
+      if (speed > 27 && !this.armored) this.damagePlayer((speed - 27) * 4);
+    };
+    p.onDoubleJump = () => {
+      const f = p.feet(this.tmp);
+      this.particles.emit(FX.dust, f, 10, { spread: 1.2, speed: [1, 3], sizeMul: 0.6 });
+      audio.whoosh(f, 0.5, 1.4);
     };
     p.onJump = () => audio.jump(p.feet(this.tmp));
     p.onStep = (surface) => {
+      if (this.silent) return;
       const heavy = this.armored ? 2.2 : 1;
       audio.footstep(p.feet(this.tmp), this.armored ? 'stone' : surface, heavy * (this.input.isDown('sprint') ? 1.3 : this.player.crouching ? 0.4 : 1));
       if (this.armored) {
@@ -621,7 +696,12 @@ export class Game {
 
     this.powers.handleInput(active && !this.teleportMenu.visible);
     this.powers.update(dt);
-    if (dt > 0) this.energy.update(dt);
+    if (dt > 0) {
+      this.energy.update(dt);
+      this.health.update(dt);
+    }
+    this.hud.setHealth(this.health.fraction);
+    this.damageNumbers.update(realDt, this.camera, window.innerWidth, window.innerHeight);
     for (const s of this.systems) s.update?.(dt, realDt);
     this.entities.updateVisuals(this.camera.position);
     this.particles.budget = this.quality.preset.particleBudget * this.quality.particleScale;
@@ -636,7 +716,7 @@ export class Game {
 
     // Body: visible in third person, shadow-only in first person.
     const third = this.rig.mode === 'third';
-    this.avatar.setMode(this.digging ? 'hidden' : third ? 'visible' : 'shadowOnly');
+    this.avatar.setMode(this.digging || this.playerHidden ? 'hidden' : third ? 'visible' : 'shadowOnly');
     this.avatar.update(dt, this.player.renderFeet(this.tmp), this.rig.yaw, this.player.speed, this.player.grounded, this.player.crouchT);
     this.hands.visible = !third && !this.digging;
     this.hud.setDig(this.digging);

@@ -4,7 +4,7 @@ import { controlsGrid } from './controlsList';
 import { el } from './dom';
 import { svgIcon } from './icons';
 
-const SLOT_ACTIONS: Action[] = ['ability1', 'ability2', 'ability3', 'ability4'];
+const SLOT_ACTIONS: Action[] = ['ability1', 'ability2', 'ability3', 'ability4', 'ability5', 'ability6'];
 
 /** H toggles this: full controls plus every power's abilities. Doesn't pause. */
 export class HelpOverlay {

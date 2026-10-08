@@ -6,6 +6,13 @@ export class Time {
   paused = false;
   /** Simulation speed multiplier (1 = real time, 0.25 = slow motion). */
   scale = 1;
+  /** Real seconds of hit-stop remaining (impact freeze frames). */
+  hitstop = 0;
+
+  /** Briefly freeze the action on a big hit. */
+  freeze(seconds: number) {
+    this.hitstop = Math.max(this.hitstop, seconds);
+  }
   /** Seconds of simulated (scaled, unpaused) time since start. */
   elapsed = 0;
   /** Real seconds since start, unaffected by pause/slow-mo (for UI animation). */

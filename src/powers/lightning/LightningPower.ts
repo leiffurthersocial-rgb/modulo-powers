@@ -8,6 +8,7 @@ import { Ability } from '../Ability';
 import { aim, bothHands, handPos, pose } from '../common';
 import { explosion } from '../effects';
 import { Power } from '../Power';
+import { Godspeed, ThunderPalm } from './extra';
 
 const BOLT_BLUE = 0x9fd0ff;
 const GLOW = 0x7fd4ff;
@@ -40,7 +41,7 @@ const CLOUD: ParticlePreset = {
 };
 
 /** Strike a point with a full lightning bolt: VFX, light, thunder, reactions. */
-function strike(g: Game, from: THREE.Vector3, to: THREE.Vector3, strength: number, normal?: THREE.Vector3) {
+export function strike(g: Game, from: THREE.Vector3, to: THREE.Vector3, strength: number, normal?: THREE.Vector3) {
   g.bolts.spawn(from, to, {
     width: 0.06 + strength * 0.1,
     jag: 0.12,
@@ -518,7 +519,7 @@ export class LightningPower extends Power {
   readonly name = 'Lightning';
   readonly color = '#7fd4ff';
   readonly icon = ICONS.lightning;
-  readonly abilities = [new BoltStrike(), new ChainLightning(), new LightningStep(), new StormCall()];
+  readonly abilities = [new BoltStrike(), new ChainLightning(), new LightningStep(), new StormCall(), new ThunderPalm(), new Godspeed()];
   private t = 0;
   private a = new THREE.Vector3();
   private b = new THREE.Vector3();

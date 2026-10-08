@@ -24,7 +24,24 @@ export class StealthSystem implements GameSystem {
   /** 0 (unseeable) … 1 (fully visible). */
   visibility = 1;
   /** Set by the Invisibility ability. */
-  invisible = false;
+  private sources = new Set<string>();
+  /** Extra visibility multiplier (Assassin mode, Zetsu...). */
+  stealthMul = 1;
+
+  /** Any invisibility source active (Shadow Invisibility, Zetsu, Rhythm Echo). */
+  get invisible(): boolean {
+    return this.sources.size > 0;
+  }
+
+  /** Back-compat: the Shadow power's toggle. */
+  set invisible(v: boolean) {
+    this.setInvisible('shadow', v);
+  }
+
+  setInvisible(key: string, on: boolean) {
+    if (on) this.sources.add(key);
+    else this.sources.delete(key);
+  }
   /** Seconds of forced reveal remaining. */
   reveal = 0;
   /** Is the player standing in shade (sun occluded)? */
@@ -96,14 +113,16 @@ export class StealthSystem implements GameSystem {
     const speed = g.player.speed;
     if (this.invisible) {
       // Invisible: almost nothing unless lit up or moving fast.
-      vis = vis * 0.12 + Math.max(0, this.light - 0.7) * 0.5 + Math.max(0, speed - 5) * 0.06;
+      // Truly invisible: only a blinding light or bumping into someone gives you away.
+      vis = vis * 0.03 + Math.max(0, this.light - 1.15) * 0.4 + Math.max(0, speed - 10) * 0.02;
     } else {
       vis *= 0.85 + Math.min(0.3, speed * 0.04);
     }
+    vis *= this.stealthMul;
     if (this.reveal > 0) vis = Math.max(vis, 0.9);
     this.visibility = Math.min(1, Math.max(0, vis));
     // HUD meter: visible while the Shadow power is equipped or invisible.
-    const show = this.invisible || g.powers.current.id === 'shadow';
+    const show = this.invisible || ['shadow', 'nen', 'assassin'].includes(g.powers.current.id);
     this.meter.style.opacity = show ? '1' : '0';
     if (show) {
       this.fill.style.width = `${Math.round(this.visibility * 100)}%`;
@@ -112,6 +131,7 @@ export class StealthSystem implements GameSystem {
   }
 
   reset() {
+    this.sources.clear();
     this.decoys.length = 0;
     this.noises.length = 0;
     this.reveal = 0;

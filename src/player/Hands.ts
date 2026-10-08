@@ -92,12 +92,26 @@ class Hand {
     this.recoil = Math.min(0.25, this.recoil + amount);
   }
 
+  /** Throw the hand forward (punch / strike), it springs back. */
+  punch(amount: number) {
+    this.thrustT = Math.min(0.6, amount);
+    this.curlTarget = 1;
+  }
+  private thrustT = 0;
+
   update(dt: number, bob: THREE.Vector2, sway: THREE.Vector2) {
     const k = damp(14, dt);
     this.root.position.lerp(this.targetPos, k);
     this.root.quaternion.slerp(this.targetQuat, k);
     this.recoil += (0 - this.recoil) * damp(9, dt);
     this.root.position.z += this.recoil;
+    if (this.thrustT > 0.001) {
+      // Fast out, slower return.
+      this.root.position.z -= this.thrustT;
+      this.root.position.x -= this.thrustT * 0.25 * (this.side === 'left' ? -1 : 1);
+      this.root.position.y += this.thrustT * 0.25;
+      this.thrustT += (0 - this.thrustT) * damp(12, dt);
+    }
     this.root.position.y -= this.recoil * 0.3;
     this.root.position.x += bob.x + sway.x;
     this.root.position.y += bob.y + sway.y;
@@ -150,6 +164,10 @@ export class Hands {
   kick(side: Side | 'both', amount: number) {
     if (side !== 'right') this.left.kick(amount);
     if (side !== 'left') this.right.kick(amount);
+  }
+
+  punch(side: Side, amount = 0.4) {
+    this.hand(side).punch(amount);
   }
 
   /** Emissive glow on the hands; call every frame while active (it decays). */

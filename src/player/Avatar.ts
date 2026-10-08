@@ -66,6 +66,7 @@ export class Avatar {
     this.torso.add(stripe);
     this.head = new THREE.Mesh(new THREE.SphereGeometry(0.12, 14, 10), this.skin);
     this.head.position.y = 0.72;
+    this.head.name = 'head';
     this.head.scale.set(0.95, 1.1, 1);
     this.allMeshes.push(this.head);
     this.torso.add(this.head);

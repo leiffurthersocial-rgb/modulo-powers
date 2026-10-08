@@ -124,7 +124,7 @@ export class Reactions {
       const d = e.center(TMP).distanceTo(center);
       const k = opts.falloff === false ? 1 : Math.max(0.15, 1 - Math.max(0, d - e.radius) / radius);
       this.apply(e, element, amount * k, center);
-      if (opts.impulse && e.isDynamic) {
+      if (opts.impulse && (e.isDynamic || e.onImpulse)) {
         const dir = TMP2.copy(TMP).sub(center);
         dir.y += 0.4;
         dir.normalize().multiplyScalar(opts.impulse * k * Math.min(1, e.mass / 40 + 0.3));

@@ -11,6 +11,7 @@ import { Ability } from '../Ability';
 import { aim, bothHands, handPos, pose } from '../common';
 import { explosion } from '../effects';
 import { Power } from '../Power';
+import { RockFist, StoneSpikes } from './extra';
 import type { Game } from '../../core/Game';
 
 const EARTH = 0xc08a4a;
@@ -683,7 +684,7 @@ export class EarthPower extends Power {
   readonly name = 'Earth';
   readonly color = '#c08a4a';
   readonly icon = ICONS.earth;
-  readonly abilities = [new RaisePillar(), new BoulderThrow(), new Earthquake(), new StoneArmor()];
+  readonly abilities = [new RaisePillar(), new BoulderThrow(), new Earthquake(), new StoneArmor(), new RockFist(), new StoneSpikes()];
   private tmp = new THREE.Vector3();
 
   bind(game: Game) {

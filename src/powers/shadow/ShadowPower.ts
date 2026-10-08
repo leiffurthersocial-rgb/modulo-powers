@@ -8,6 +8,7 @@ import type { Entity } from '../../world/Entity';
 import { Ability } from '../Ability';
 import { aim, handPos, pose } from '../common';
 import { Power } from '../Power';
+import { Assassinate, CursedStrike } from './extra';
 
 const PURPLE = 0x9b7bff;
 const DARK = 0x2a1450;
@@ -22,7 +23,7 @@ function smokeBurst(g: Game, p: THREE.Vector3, n = 30) {
 // -----------------------------------------------------------------------------
 class Invisibility extends Ability {
   readonly name = 'Invisibility';
-  readonly description = 'Fade from sight. Far stronger in darkness and at night; bright light, fire, lightning or fast movement give you away.';
+  readonly description = 'Become completely invisible — no body, no shadow. Enemies lose track of you unless you bump into them; big explosions or lightning nearby flicker you back for a moment.';
   icon = ICONS.eye;
   mode = 'toggle' as const;
   cost = 5;
@@ -41,6 +42,7 @@ class Invisibility extends Ability {
   protected end() {
     const g = this.game;
     g.stealth.invisible = false;
+    g.playerHidden = false;
     audio.noiseBurst({ volume: 0.3, attack: 0.05, decay: 0.4, filter: 'bandpass', freq: 300, freqEnd: 1800, q: 2 });
     smokeBurst(g, g.player.curPos, 10);
   }
@@ -61,18 +63,21 @@ class Invisibility extends Ability {
       this.fade = 0;
       return;
     }
-    // Lit or revealed: shimmer back into view.
-    const lit = this.active ? Math.min(1, g.stealth.visibility * 1.5) : 0;
-    const o = 1 - this.fade * (1 - lit * 0.6);
-    g.avatar.setOpacity(Math.max(0.06, o));
-    g.hands.setOpacity(Math.max(0.12, o));
-    if (this.active && Math.random() < dt * 4) {
-      g.particles.emit(FX.shadow, g.player.renderPos, 1, { spread: Math.PI, speed: [0.1, 0.4], jitter: 0.4, sizeMul: 0.5 });
+    // Fully invisible: no body, no shadow. Hands are a faint ghost outline
+    // (so you can still aim), which flickers if a bright flash reveals you.
+    const revealed = this.active && g.stealth.reveal > 0;
+    const o = 1 - this.fade * (revealed ? 0.6 : 1);
+    g.playerHidden = this.active && this.fade > 0.85 && !revealed;
+    g.avatar.setOpacity(Math.max(0, o));
+    g.hands.setOpacity(Math.max(0.07, o));
+    if (this.active && Math.random() < dt * 2) {
+      g.particles.emit(FX.shadow, g.player.renderPos, 1, { spread: Math.PI, speed: [0.1, 0.3], jitter: 0.4, sizeMul: 0.25 });
     }
   }
 
   reset() {
     super.reset();
+    this.game.playerHidden = false;
     this.game.stealth.invisible = false;
   }
 }
@@ -292,19 +297,32 @@ class Phase extends Ability {
 // -----------------------------------------------------------------------------
 interface Clone {
   avatar: Avatar;
+  eyes: THREE.Mesh[];
   pos: THREE.Vector3;
   dir: THREE.Vector3;
   t: number;
   life: number;
   yaw: number;
+  target: Entity | null;
+  attackCd: number;
+  punch: number;
+  vy: number;
 }
 
+const EYE_MAT = new THREE.MeshBasicMaterial({ color: new THREE.Color(0xff1030).multiplyScalar(4) });
+const EYE_GEO = new THREE.SphereGeometry(0.025, 8, 6);
+
+/**
+ * B — Shadow Clone: a living shadow warrior rises from a pool of darkness.
+ * It hunts the nearest enemy, beats it with cursed-energy punches (and lures
+ * guards as a decoy). Crouch + B: shadow tendrils yank small props to you.
+ */
 class ShadowClone extends Ability {
   readonly name = 'Shadow Clone';
-  readonly description = 'Leave a shadow decoy that walks off where you look — guards chase and investigate it. Crouch + B: shadow tendrils yank small props to you.';
+  readonly description = 'Summon a shadow warrior with burning red eyes: it hunts the nearest enemy and pummels it with cursed energy, and distracts guards. Up to 3 at once. Crouch + B: tendrils yank props to you.';
   icon = ICONS.clone;
-  cost = 28;
-  cooldown = 5;
+  cost = 26;
+  cooldown = 3;
   private clones: Clone[] = [];
   private near: Entity[] = [];
   private tmp = new THREE.Vector3();
@@ -313,16 +331,33 @@ class ShadowClone extends Ability {
     const g = this.game;
     if (g.player.crouching) return this.tendrils();
     if (this.clones.length >= 3) this.kill(0);
-    const av = new Avatar({ suit: 0x0a0612, skin: 0x150a24, accent: PURPLE });
-    av.setOpacity(0.85);
+    const av = new Avatar({ suit: 0x07040d, skin: 0x0d0618, accent: 0x7a2aff });
+    av.setOpacity(0.92);
     g.scene.add(av.root);
+    // Glowing red eyes on the head.
+    const head = av.root.getObjectByName('head') ?? av.root;
+    const eyes: THREE.Mesh[] = [];
+    for (const x of [-0.045, 0.045]) {
+      const eye = new THREE.Mesh(EYE_GEO, EYE_MAT);
+      eye.position.set(x, 0.02, 0.11);
+      head.add(eye);
+      eyes.push(eye);
+    }
     const dir = g.rig.aimDirection(new THREE.Vector3()).setY(0).normalize();
-    const c: Clone = { avatar: av, pos: g.player.feet(new THREE.Vector3()), dir, t: 0, life: 10, yaw: g.rig.yaw };
+    const pos = g.player.feet(new THREE.Vector3()).addScaledVector(dir, 2);
+    pos.y = g.world.heightAt(pos.x, pos.z);
+    const c: Clone = { avatar: av, eyes, pos, dir, t: 0, life: 14, yaw: g.rig.yaw, target: null, attackCd: 0.6, punch: 0, vy: 0 };
     this.clones.push(c);
     g.stealth.addDecoy(c.pos, c.life);
-    smokeBurst(g, g.player.curPos, 30);
-    audio.noiseBurst({ volume: 0.4, attack: 0.1, decay: 0.5, filter: 'bandpass', freq: 600, freqEnd: 200, q: 3 });
-    // The decoy makes some noise so guards notice it.
+    // Rise from a pool of shadow.
+    g.decals.add('scorch', pos, UP, 2.4, 3, 0.9);
+    smokeBurst(g, pos.clone().setY(pos.y + 0.3), 40);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.bolts.spawn(pos.clone().add(TMP.set(Math.cos(a) * 1.4, 0.05, Math.sin(a) * 1.4)), pos.clone().setY(pos.y + 1.6), { color: 0x6a2aff, width: 0.03, jag: 0.25, detail: 5, life: 0.35, intensity: 1.2 });
+    }
+    audio.noiseBurst({ pos, volume: 0.6, attack: 0.15, decay: 0.7, filter: 'bandpass', freq: 200, freqEnd: 900, q: 3 });
+    audio.tone({ pos, volume: 0.25, freq: 70, freqEnd: 140, decay: 0.8, type: 'sawtooth' });
     g.stealth.noise(c.pos, 18);
     pose(g, 'push', 'rest');
     setTimeout(() => pose(g, 'rest', 'rest'), 250);
@@ -360,12 +395,27 @@ class ShadowClone extends Ability {
 
   private kill(i: number) {
     const c = this.clones[i];
-    smokeBurst(this.game, c.pos.clone().setY(c.pos.y + 1), 25);
+    smokeBurst(this.game, c.pos.clone().setY(c.pos.y + 1), 35);
     c.avatar.root.removeFromParent();
     c.avatar.accent.dispose();
     c.avatar.suit.dispose();
     c.avatar.skin.dispose();
     this.clones.splice(i, 1);
+  }
+
+  /** Nearest enemy worth fighting (fighters, guards; dummies if nothing else). */
+  private pickTarget(c: Clone): Entity | null {
+    let best: Entity | null = null;
+    let bd = 22;
+    for (const e of this.game.entities.nearby(c.pos, 22, this.near)) {
+      if (!e.onDamage || e.dead) continue;
+      const d = e.center(TMP).distanceTo(c.pos) + (e.type === 'dummy' ? 12 : 0);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    return best;
   }
 
   update(dt: number) {
@@ -374,24 +424,58 @@ class ShadowClone extends Ability {
     for (let i = this.clones.length - 1; i >= 0; i--) {
       const c = this.clones[i];
       c.t += dt;
-      // Walk away for a few seconds, then idle and look around.
-      const walking = c.t < 4;
-      if (walking) {
-        const next = TMP.copy(c.pos).addScaledVector(c.dir, 3.2 * dt);
-        const gy = g.world.heightAt(next.x, next.z);
-        const hit = g.physics.raycast(TMP2.set(next.x, c.pos.y + 1, next.z), c.dir, 0.6, { exclude: g.player.collider });
-        if (!hit && Math.abs(gy - c.pos.y) < 0.8) c.pos.set(next.x, Math.max(gy, c.pos.y - 0.2), next.z);
-        else c.dir.applyAxisAngle(UP, Math.PI * 0.6);
+      c.attackCd -= dt;
+      if (!c.target || c.target.dead || Math.random() < dt * 0.5) c.target = this.pickTarget(c);
+      let speed = 0;
+      let yaw = c.yaw;
+      if (c.target) {
+        const tp = c.target.center(TMP);
+        const to = TMP2.copy(tp).sub(c.pos).setY(0);
+        const d = to.length();
+        yaw = Math.atan2(-to.x, -to.z);
+        c.yaw = yaw;
+        if (d > 1.5) {
+          speed = 6.5;
+          c.dir.copy(to).divideScalar(d);
+        } else if (c.attackCd <= 0) {
+          // Cursed-energy punch.
+          c.attackCd = 0.55;
+          c.punch = 1;
+          const dmg = 18;
+          g.reactions.damage(c.target, dmg, 'shadow');
+          c.target.applyImpulse(c.dir.x * 250, 120, c.dir.z * 250);
+          const hp = tp.clone();
+          g.damageNumbers.spawn(hp.setY(hp.y + 0.9), dmg, '#9b7bff');
+          g.particles.emit(FX.shadow, tp, 10, { spread: Math.PI, speed: [1, 3], sizeMul: 0.6 });
+          g.particles.emit(FX.shadowGlow, tp, 15, { spread: Math.PI, speed: [2, 5] });
+          g.bolts.spawn(c.pos.clone().setY(c.pos.y + 1.2), tp, { color: 0x8a2aff, width: 0.03, detail: 4, life: 0.15, intensity: 1.5 });
+          g.lights.add(tp, 0x7a2aff, 6, 5);
+          audio.noiseBurst({ pos: tp, volume: 0.5, decay: 0.12, freq: 700, freqEnd: 150, brown: true });
+        }
+      } else if (c.t < 4) {
+        speed = 3.2;
+        yaw = Math.atan2(-c.dir.x, -c.dir.z);
       } else {
         c.yaw += Math.sin(c.t * 0.9) * dt * 0.8;
+        yaw = c.yaw;
+      }
+      if (speed > 0) {
+        const next = TMP.copy(c.pos).addScaledVector(c.dir, speed * dt);
+        const gy = g.world.heightAt(next.x, next.z);
+        const hit = g.physics.raycast(TMP2.set(next.x, c.pos.y + 1, next.z), c.dir, 0.6, { exclude: g.player.collider });
+        if (!hit && Math.abs(gy - c.pos.y) < 1.2) c.pos.set(next.x, gy, next.z);
+        else if (!c.target) c.dir.applyAxisAngle(UP, Math.PI * 0.6);
       }
       const decoy = g.stealth.decoys.find((d) => Math.abs(d.life - (c.life - c.t)) < 0.5);
       if (decoy) decoy.pos.copy(c.pos);
-      const yaw = walking ? Math.atan2(-c.dir.x, -c.dir.z) : c.yaw;
-      c.avatar.update(dt, c.pos, yaw, walking ? 3.2 : 0, true, 0);
+      c.punch = Math.max(0, c.punch - dt * 5);
+      c.avatar.aimTarget = c.punch > 0.2 ? 1 : 0;
+      c.avatar.update(dt, c.pos, yaw, speed, true, 0);
       const fadeOut = c.life - c.t < 1 ? Math.max(0, c.life - c.t) : 1;
-      c.avatar.setOpacity(0.85 * fadeOut);
-      if (Math.random() < dt * 6) g.particles.emit(FX.shadow, TMP.copy(c.pos).setY(c.pos.y + 0.9), 1, { spread: Math.PI, speed: [0.1, 0.4], jitter: 0.3, sizeMul: 0.6 });
+      c.avatar.setOpacity(0.92 * fadeOut);
+      // Dark aura flowing off the body.
+      if (Math.random() < dt * 14) g.particles.emit(FX.shadow, TMP.copy(c.pos).setY(c.pos.y + 0.4 + Math.random() * 1.3), 1, { spread: 0.6, speed: [0.3, 1], jitter: 0.25, sizeMul: 0.5 });
+      if (Math.random() < dt * 6) g.particles.emit(FX.shadowGlow, TMP.copy(c.pos).setY(c.pos.y + 1), 1, { spread: Math.PI, speed: [0.2, 0.8], jitter: 0.3 });
       if (c.t >= c.life) this.kill(i);
     }
   }
@@ -410,7 +494,7 @@ export class ShadowPower extends Power {
   readonly name = 'Shadow';
   readonly color = '#9b7bff';
   readonly icon = ICONS.shadow;
-  readonly abilities = [new Invisibility(), new ShadowBlink(), new Phase(), new ShadowClone()];
+  readonly abilities = [new Invisibility(), new ShadowBlink(), new Phase(), new ShadowClone(), new CursedStrike(), new Assassinate()];
   private tmp = new THREE.Vector3();
 
   /** Idle: dark wisps curl off the hands. */

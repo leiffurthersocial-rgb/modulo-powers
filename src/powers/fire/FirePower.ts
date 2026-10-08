@@ -6,6 +6,7 @@ import { Ability } from '../Ability';
 import { aim, bothHands, handPos, pose, type Projectile } from '../common';
 import { explosion } from '../effects';
 import { Power } from '../Power';
+import { BlazingFist, MeteorDive } from './extra';
 
 const ORANGE = 0xff7a2f;
 
@@ -318,14 +319,6 @@ class FlameWall extends Ability {
       if (k <= 0.05) continue;
       const p = this.tmp.copy(s.pos).setY(s.pos.y + 1);
       for (const e of g.entities.nearby(p, 1.6, NEAR)) g.reactions.apply(e, 'fire', 0.5 * k, p);
-      // Pushes back anything that walks into it.
-      const pc = g.player.curPos;
-      if (Math.hypot(pc.x - s.pos.x, pc.z - s.pos.z) < 0.9 && Math.abs(pc.y - p.y) < 2) {
-        const away = TMP.copy(pc).sub(s.pos).setY(0).normalize().multiplyScalar(4);
-        away.y = 2;
-        g.player.thrust(away);
-        g.rig.addFlash(0.15);
-      }
     }
   }
 
@@ -475,7 +468,7 @@ export class FirePower extends Power {
   readonly name = 'Fire';
   readonly color = '#ff7a2f';
   readonly icon = ICONS.fire;
-  readonly abilities = [new Fireball(), new Flamethrower(), new FlameWall(), new FireThrust()];
+  readonly abilities = [new Fireball(), new Flamethrower(), new FlameWall(), new FireThrust(), new BlazingFist(), new MeteorDive()];
   private tmp = new THREE.Vector3();
 
   /** Idle: tiny flames dance on the fingertips. */

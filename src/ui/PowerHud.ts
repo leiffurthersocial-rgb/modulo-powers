@@ -4,8 +4,8 @@ import type { PowerManager } from '../powers/PowerManager';
 import { el } from './dom';
 import { svgIcon } from './icons';
 
-const SLOT_ACTIONS: Action[] = ['ability1', 'ability2', 'ability3', 'ability4'];
-const POWER_ACTIONS: Action[] = ['power1', 'power2', 'power3', 'power4', 'power5'];
+const SLOT_ACTIONS: Action[] = ['ability1', 'ability2', 'ability3', 'ability4', 'ability5', 'ability6'];
+const POWER_ACTIONS: Action[] = ['power1', 'power2', 'power3', 'power4', 'power5', 'power6', 'power7'];
 
 interface Slot {
   root: HTMLElement;
@@ -50,7 +50,7 @@ export class PowerHud {
     this.energyFill = el('div', 'energy-fill', '', bar);
     this.energyText = el('div', 'energy-text', '', bar);
     const slotRow = el('div', 'ability-slots', '', this.root);
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < SLOT_ACTIONS.length; i++) {
       const root = el('div', 'ability-slot', '', slotRow);
       const icon = el('div', 'ability-icon', '', root);
       const cd = el('div', 'ability-cd', '', root);

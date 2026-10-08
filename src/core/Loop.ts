@@ -48,7 +48,12 @@ export class Loop {
     const fixed = PHYSICS.fixedDt;
     time.realDelta = realDt;
     time.realElapsed += realDt;
-    const dt = time.paused ? 0 : realDt * time.scale;
+    let hs = 1;
+    if (time.hitstop > 0) {
+      time.hitstop -= realDt;
+      hs = 0.06;
+    }
+    const dt = time.paused ? 0 : realDt * time.scale * hs;
     time.delta = dt;
     if (!time.paused) {
       this.accumulator += dt;

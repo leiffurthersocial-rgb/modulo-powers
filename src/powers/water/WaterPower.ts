@@ -10,6 +10,7 @@ import { waterNormalTexture } from '../../world/textures';
 import { Ability } from '../Ability';
 import { aim, handPos, pose } from '../common';
 import { Power } from '../Power';
+import { IceSpears, WaterWhip } from './extra';
 
 const BLUE = 0x3fa9f5;
 const ICE_BLUE = 0x9fdcff;
@@ -574,7 +575,7 @@ export class WaterPower extends Power {
   readonly name = 'Water';
   readonly color = '#3fa9f5';
   readonly icon = ICONS.water;
-  readonly abilities = [new WaterJet(), new TidalWave(), new Freeze(), new HydroShield()];
+  readonly abilities = [new WaterJet(), new TidalWave(), new Freeze(), new HydroShield(), new IceSpears(), new WaterWhip()];
   private tmp = new THREE.Vector3();
 
   bind(game: Parameters<Power['bind']>[0]) {

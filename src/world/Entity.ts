@@ -148,8 +148,16 @@ export class Entity {
     else this.tags.delete(t);
   }
 
+  /** Which way a character is facing (for backstabs). */
+  facing?: () => THREE.Vector3;
+  /** Is a character currently aware of / fighting the player? */
+  aware?: () => boolean;
+  /** Knockback for non-physical characters (fighters, guards). */
+  onImpulse?: (x: number, y: number, z: number) => void;
+
   applyImpulse(x: number, y: number, z: number) {
     if (this.body && this.body.isDynamic()) this.body.applyImpulse({ x, y, z }, true);
+    else this.onImpulse?.(x, y, z);
   }
 }
 

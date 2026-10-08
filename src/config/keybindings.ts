@@ -30,12 +30,16 @@ export type Action =
   | 'power3'
   | 'power4'
   | 'power5'
+  | 'power6'
+  | 'power7'
   | 'prevPower'
   | 'nextPower'
   | 'ability1'
   | 'ability2'
   | 'ability3'
   | 'ability4'
+  | 'ability5'
+  | 'ability6'
   | 'pause'
   | 'reset'
   | 'fullReset'
@@ -61,18 +65,22 @@ export const KEYBINDINGS: Record<Action, string[]> = {
   lookUp: ['ArrowUp'],
   lookDown: ['ArrowDown'],
   interact: ['KeyF'],
-  toggleView: ['KeyV'],
+  toggleView: ['KeyO'],
   power1: ['Digit1'],
   power2: ['Digit2'],
   power3: ['Digit3'],
   power4: ['Digit4'],
   power5: ['Digit5'],
+  power6: ['Digit6'],
+  power7: ['Digit7'],
   prevPower: ['KeyQ'],
   nextPower: ['KeyE'],
   ability1: ['KeyZ', 'Mouse0'],
   ability2: ['KeyX', 'Mouse2'],
   ability3: ['KeyC'],
   ability4: ['KeyB'],
+  ability5: ['KeyV', 'Mouse1'],
+  ability6: ['KeyG'],
   pause: ['KeyP'],
   reset: ['KeyR'],
   fullReset: ['Shift+KeyR'],
@@ -80,7 +88,7 @@ export const KEYBINDINGS: Record<Action, string[]> = {
   dayNight: ['KeyN'],
   help: ['KeyH'],
   mute: ['KeyM'],
-  infiniteEnergy: ['KeyG'],
+  infiniteEnergy: ['KeyJ'],
   slowMo: ['KeyK'],
   quality: ['KeyL'],
   respawn: ['Backspace'],
@@ -106,12 +114,16 @@ export const ACTION_LABELS: Record<Action, string> = {
   power3: 'Water',
   power4: 'Earth',
   power5: 'Shadow',
+  power6: 'Nen',
+  power7: 'Assassin',
   prevPower: 'Previous power',
   nextPower: 'Next power',
   ability1: 'Ability 1',
   ability2: 'Ability 2',
   ability3: 'Ability 3',
   ability4: 'Ability 4',
+  ability5: 'Ability 5',
+  ability6: 'Ability 6',
   pause: 'Pause / resume',
   reset: 'Reset map',
   fullReset: 'Full reset (map + player)',
@@ -119,7 +131,7 @@ export const ACTION_LABELS: Record<Action, string> = {
   dayNight: 'Day / night',
   help: 'Help overlay',
   mute: 'Mute / unmute',
-  infiniteEnergy: 'Infinite energy',
+  infiniteEnergy: 'Sandbox mode (no damage, ∞ energy)',
   slowMo: 'Slow motion',
   quality: 'Cycle quality',
   respawn: 'Respawn at checkpoint',
@@ -140,12 +152,16 @@ export const ACTION_GROUPS: { title: string; actions: Action[] }[] = [
       'power3',
       'power4',
       'power5',
+      'power6',
+      'power7',
       'prevPower',
       'nextPower',
       'ability1',
       'ability2',
       'ability3',
       'ability4',
+      'ability5',
+      'ability6',
     ],
   },
   {

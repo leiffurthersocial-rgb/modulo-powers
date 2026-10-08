@@ -82,6 +82,10 @@ export class PlayerController {
   /** Events for camera/audio. */
   onLand: ((impactSpeed: number) => void) | null = null;
   onJump: (() => void) | null = null;
+  onDoubleJump: (() => void) | null = null;
+  /** Extra jumps available in the air (refilled on landing). */
+  airJumps = 1;
+  maxAirJumps = 1;
   onStep: ((surface: GroundSurface) => void) | null = null;
   /** Lets the world decide what surface a collider is (for footstep sounds). */
   surfaceOf: ((collider: RAPIER.Collider | null, pos: THREE.Vector3) => GroundSurface) | null = null;
@@ -184,8 +188,12 @@ export class PlayerController {
   private moveGroups(): number {
     let filter = ALL_GROUPS & ~G.PLAYER & ~G.SENSOR & ~G.DEBRIS;
     if (this.phase) filter &= ~G.PHASEABLE;
+    if (this.ghostNPC) filter &= ~G.NPC;
     return groups(G.PLAYER, filter);
   }
+
+  /** Pass through characters (Flash Step). */
+  ghostNPC = false;
 
   /** True if a capsule of the given half-height at `center` overlaps solid world. */
   overlaps(center: THREE.Vector3, halfHeight: number, ignorePhaseable = false): boolean {
@@ -315,6 +323,13 @@ export class PlayerController {
       this.grounded = false;
       this.airTime = PLAYER.coyoteTime;
       this.onJump?.();
+    } else if (this.jumpBuffer > 0 && !this.grounded && this.airJumps > 0 && !swimming && this.airTime > 0.15) {
+      // Double jump.
+      v.y = Math.max(v.y, Math.sqrt(2 * -g * PLAYER.jumpHeight * 0.95));
+      this.jumpBuffer = 0;
+      this.jumping = true;
+      this.airJumps--;
+      this.onDoubleJump?.();
     }
 
     const desired = { x: v.x * dt, y: v.y * dt, z: v.z * dt };
@@ -348,6 +363,7 @@ export class PlayerController {
       if (!this.wasGrounded && this.lastFallSpeed > 1.5) this.onLand?.(this.lastFallSpeed);
       if (v.y < 0) v.y = 0;
       this.airTime = 0;
+      this.airJumps = this.maxAirJumps;
       this.jumping = false;
     } else {
       this.airTime += dt;

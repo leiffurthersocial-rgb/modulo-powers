@@ -20,6 +20,8 @@ export interface ExplosionOpts {
   look?: 'fire' | 'dust' | 'water' | 'electric' | 'shadow';
   normal?: THREE.Vector3;
   sound?: boolean;
+  /** Who caused it. The player is immune to their own blasts. */
+  owner?: 'player' | 'enemy';
 }
 
 /**
@@ -32,22 +34,19 @@ export function explosion(game: Game, pos: THREE.Vector3, o: ExplosionOpts) {
   const n = o.normal ?? UP;
   const look = o.look ?? 'fire';
   g.reactions.applyArea(o.element, pos, o.radius, o.amount, { impulse: o.impulse });
-  if (o.damage) {
+  if (o.damage && o.owner !== 'enemy') {
     for (const e of g.entities.nearby(pos, o.radius, TMP_LIST)) {
       const d = e.center(TMP).distanceTo(pos);
       g.reactions.damage(e, o.damage * Math.max(0.2, 1 - d / o.radius), o.element);
     }
   }
-  // Player knockback (rocket jumps!).
+  // The player is immune to their own powers; enemy blasts hurt and knock back.
   const pc = g.player.curPos;
   const dp = TMP.copy(pc).sub(pos);
   const dist = dp.length();
-  if (o.playerPush && dist < o.radius * 1.2) {
+  if (o.owner === 'enemy' && dist < o.radius * 1.2) {
     const k = 1 - dist / (o.radius * 1.2);
-    dp.normalize();
-    dp.y = Math.max(dp.y, 0.35);
-    dp.normalize().multiplyScalar(o.playerPush * k * (g.shielded || g.armored ? 0.4 : 1));
-    g.player.thrust(dp);
+    g.damagePlayer((o.damage ?? 20) * k, pos, (o.playerPush ?? 6) * k);
   }
   // Noise and light give the player away.
   g.stealth.noise(pos, o.radius * 10);
