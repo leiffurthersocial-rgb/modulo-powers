@@ -3,6 +3,7 @@ import type { Ability } from './Ability';
 import { Power } from './Power';
 import { StubAbility } from './StubAbility';
 import { FirePower } from './fire/FirePower';
+import { EarthPower } from './earth/EarthPower';
 import { LightningPower } from './lightning/LightningPower';
 import { WaterPower } from './water/WaterPower';
 
@@ -26,12 +27,7 @@ export function createPowers(): Power[] {
     new LightningPower(),
     new FirePower(),
     new WaterPower(),
-    new SimplePower('earth', 'Earth', '#c08a4a', ICONS.earth, [
-      new StubAbility('Raise Pillar', 'Rock column at the aim point.', ICONS.pillar, 'charge', 18, 0.6),
-      new StubAbility('Boulder Throw', 'Pull a boulder, then hurl it.', ICONS.boulder, 'tap', 25, 1),
-      new StubAbility('Earthquake', 'Ground slam shockwave.', ICONS.quake, 'charge', 40, 4),
-      new StubAbility('Stone Armor / Dig', 'Armour toggle, or dig while crouching.', ICONS.armor, 'toggle', 5, 1),
-    ]),
+    new EarthPower(),
     new SimplePower('shadow', 'Shadow', '#9b7bff', ICONS.shadow, [
       new StubAbility('Invisibility', 'Fade from sight.', ICONS.eye, 'toggle', 6, 1),
       new StubAbility('Shadow Blink', 'Teleport to the aim point.', ICONS.blink, 'hold', 0, 0.8),

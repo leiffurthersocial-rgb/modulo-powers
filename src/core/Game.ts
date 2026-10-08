@@ -91,6 +91,10 @@ export class Game {
   readonly waterRenderer: WaterRenderer;
   /** True while the Hydro Shield is up (set by the Water power). */
   shielded = false;
+  /** Stone Armor active (Earth power). */
+  armored = false;
+  /** Player is tunnelling underground (Earth: Dig). */
+  digging = false;
   private powerHud: PowerHud;
   private help: HelpOverlay;
   private teleportMenu: TeleportMenu;
@@ -482,7 +486,14 @@ export class Game {
       audio.land(p.feet(this.tmp), Math.min(1, speed / 15));
     };
     p.onJump = () => audio.jump(p.feet(this.tmp));
-    p.onStep = (surface) => audio.footstep(p.feet(this.tmp), surface, this.input.isDown('sprint') ? 1.3 : this.player.crouching ? 0.4 : 1);
+    p.onStep = (surface) => {
+      const heavy = this.armored ? 2.2 : 1;
+      audio.footstep(p.feet(this.tmp), this.armored ? 'stone' : surface, heavy * (this.input.isDown('sprint') ? 1.3 : this.player.crouching ? 0.4 : 1));
+      if (this.armored) {
+        audio.rumble(p.feet(this.tmp), 0.15, 0.25);
+        this.rig.shake(0.04);
+      }
+    };
     p.surfaceOf = (collider, pos) => {
       const e = this.entities.fromCollider(collider);
       if (e) {
@@ -560,9 +571,10 @@ export class Game {
 
     // Body: visible in third person, shadow-only in first person.
     const third = this.rig.mode === 'third';
-    this.avatar.setMode(third ? 'visible' : 'shadowOnly');
+    this.avatar.setMode(this.digging ? 'hidden' : third ? 'visible' : 'shadowOnly');
     this.avatar.update(dt, this.player.renderFeet(this.tmp), this.rig.yaw, this.player.speed, this.player.grounded, this.player.crouchT);
-    this.hands.visible = !third;
+    this.hands.visible = !third && !this.digging;
+    this.hud.setDig(this.digging);
     this.hands.update(dt, this.player.speed, this.player.grounded, this.rig.yaw, this.rig.pitch);
 
     this.env.update(realDt, this.player.renderPos);

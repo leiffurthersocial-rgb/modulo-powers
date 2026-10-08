@@ -34,6 +34,15 @@ export class Hud {
     this.flash.style.background = color;
   }
 
+  private digEl: HTMLElement | null = null;
+  setDig(on: boolean) {
+    if (!this.digEl) {
+      this.digEl = el('div', 'underwater', '', this.root);
+      this.digEl.style.background = 'radial-gradient(ellipse at center, rgba(60,40,20,0.1), rgba(30,18,8,0.85))';
+    }
+    this.digEl.style.opacity = on ? '1' : '0';
+  }
+
   setUnderwater(level: number) {
     if (level === this.underwaterLevel) return;
     this.underwaterLevel = level;

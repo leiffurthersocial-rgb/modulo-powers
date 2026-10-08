@@ -143,6 +143,11 @@ export class PlayerController {
     }
   }
 
+  /** Mass used when pushing dynamic bodies (heavier = shoves props harder). */
+  setCharacterMass(kg = PLAYER.mass) {
+    this.kcc.setCharacterMass(kg);
+  }
+
   /** Velocity change that can lift off the ground (rocket jumps, thrust, launches). */
   thrust(dv: THREE.Vector3) {
     this.velocity.add(dv);
@@ -150,6 +155,15 @@ export class PlayerController {
       this.jumping = true;
       this.grounded = false;
     }
+  }
+
+  /**
+   * Move the capsule centre directly (keeps render interpolation). Used for
+   * scripted movement such as digging or riding a rising pillar.
+   */
+  moveCenter(x: number, y: number, z: number) {
+    this.curPos.set(x, y, z);
+    this.body.setNextKinematicTranslation({ x, y, z });
   }
 
   /** Instantly move the player (feet position). Clears velocity unless `keepVelocity`. */
