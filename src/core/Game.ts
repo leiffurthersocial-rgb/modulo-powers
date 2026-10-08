@@ -26,6 +26,7 @@ import { Signals } from '../systems/Signals';
 import { InteractionSystem } from '../systems/Interaction';
 import { GuardSystem } from '../npc/Guards';
 import { Checkpoints } from '../systems/Checkpoints';
+import { Ambience } from '../systems/Ambience';
 import { World } from '../world/World';
 import { WaterSystem } from '../world/Water';
 import { WaterRenderer } from '../world/WaterRenderer';
@@ -54,6 +55,7 @@ import { Input } from './Input';
 import { Loop } from './Loop';
 import { Physics, RAPIER } from './Physics';
 import { QualityManager } from './Quality';
+import { PostFX } from './PostFX';
 import { time } from './Time';
 
 /**
@@ -90,6 +92,7 @@ export class Game {
   readonly hud: Hud;
   readonly toasts: Toasts;
   readonly systems: GameSystem[] = [];
+  readonly postfx: PostFX;
   readonly particles: ParticleSystem;
   readonly lights: LightPool;
   readonly decals: Decals;
@@ -142,10 +145,13 @@ export class Game {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
+    // Post-processing renders several passes; count the whole frame.
+    this.renderer.info.autoReset = false;
 
     this.quality = new QualityManager(this.renderer);
     this.camera = new THREE.PerspectiveCamera(72, 1, 0.05, this.quality.preset.viewDistance);
     this.scene.add(this.camera);
+    this.postfx = new PostFX(this.renderer, this.scene, this.camera);
 
     this.physics = new Physics();
     this.staticBody = this.physics.world.createRigidBody(RAPIER.RigidBodyDesc.fixed());
@@ -193,7 +199,7 @@ export class Game {
     registerMachines(this);
     this.guards = new GuardSystem(this);
     this.checkpoints = new Checkpoints(this);
-    this.systems.push(this.guards, this.checkpoints);
+    this.systems.push(this.guards, this.checkpoints, new Ambience(this));
     this.powers = new PowerManager(this, createPowers());
     this.powers.onChange = (p) => this.onPowerChanged(p.color);
     this.powerHud = new PowerHud(this.hud.root, this.powers, this.energy);
@@ -215,7 +221,11 @@ export class Game {
         resume: () => this.setPaused(false),
         toggleHeadBob: () => (this.rig.headBob = !this.rig.headBob),
         cycleQuality: () => this.quality.cycle().label,
-        togglePostFX: () => (this.quality.postFX = !this.quality.postFX),
+        togglePostFX: () => {
+          this.quality.postFX = !this.quality.postFX;
+          this.postfx.configure(this.quality.level, this.quality.postFX);
+          return this.quality.postFX;
+        },
         toggleView: () => {
           this.rig.toggleView();
           return this.viewLabel;
@@ -331,6 +341,7 @@ export class Game {
     this.quality.applyPixelRatio();
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.postfx.setSize(w, h);
   };
 
   private applyQuality() {
@@ -342,6 +353,8 @@ export class Game {
     this.renderer.shadowMap.enabled = q.shadows;
     this.quality.applyPixelRatio();
     this.lights?.setCount(q.maxDynamicLights);
+    this.postfx.configure(this.quality.level, this.quality.postFX);
+    this.entities.cullDistance = q.viewDistance * 0.45;
   }
 
   private onPowerChanged(color: string) {
@@ -610,7 +623,7 @@ export class Game {
     this.powers.update(dt);
     if (dt > 0) this.energy.update(dt);
     for (const s of this.systems) s.update?.(dt, realDt);
-    this.entities.updateVisuals();
+    this.entities.updateVisuals(this.camera.position);
     this.particles.budget = this.quality.preset.particleBudget * this.quality.particleScale;
     this.particles.setViewport(this.canvas.height, this.camera.fov);
     this.particles.update(dt);
@@ -630,6 +643,7 @@ export class Game {
     this.hands.update(dt, this.player.speed, this.player.grounded, this.rig.yaw, this.rig.pitch);
 
     this.env.update(realDt, this.player.renderPos);
+    this.env.followCamera(this.camera.position);
     audio.setListener(this.camera.position, this.rig.right);
     this.hud.setFlash(this.rig.flashLevel);
     this.powerHud.update();
@@ -643,7 +657,8 @@ export class Game {
 
   private render() {
     this.lights.flush(this.camera);
-    this.renderer.render(this.scene, this.camera);
+    this.renderer.info.reset();
+    this.postfx.render(time.realDelta);
   }
 }
 

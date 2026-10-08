@@ -143,9 +143,26 @@ export class EntityManager {
     }
   }
 
-  /** Turn elemental state into visuals, once per rendered frame. */
-  updateVisuals() {
-    for (let i = 0; i < this.list.length; i++) this.list[i].visual.apply(this.list[i], time.elapsed);
+  /** Entities further than this from the camera are hidden (saves draw calls). */
+  cullDistance = 220;
+  private cullCursor = 0;
+
+  /** Turn elemental state into visuals, once per rendered frame; distance-cull a slice per frame. */
+  updateVisuals(cam?: THREE.Vector3) {
+    const list = this.list;
+    for (let i = 0; i < list.length; i++) {
+      const e = list[i];
+      if (e.object.visible) e.visual.apply(e, time.elapsed);
+    }
+    if (!cam || list.length === 0) return;
+    const n = Math.min(list.length, 40);
+    const d2 = this.cullDistance * this.cullDistance;
+    for (let k = 0; k < n; k++) {
+      this.cullCursor = (this.cullCursor + 1) % list.length;
+      const e = list[this.cullCursor];
+      if (e.type === 'guard') continue;
+      e.object.visible = e.object.position.distanceToSquared(cam) < d2 + e.radius * e.radius * 4;
+    }
   }
 
   /** Remove everything and respawn the recorded initial map. */

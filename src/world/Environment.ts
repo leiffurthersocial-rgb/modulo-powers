@@ -66,17 +66,20 @@ export class Environment {
     for (let i = 0; i < 2400; i++) {
       const th = rnd() * Math.PI * 2;
       const ph = Math.acos(rnd() * 0.95);
-      starPos[i * 3] = Math.sin(ph) * Math.cos(th) * 900;
-      starPos[i * 3 + 1] = Math.cos(ph) * 900;
-      starPos[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * 900;
+      starPos[i * 3] = Math.sin(ph) * Math.cos(th) * 300;
+      starPos[i * 3 + 1] = Math.cos(ph) * 300;
+      starPos[i * 3 + 2] = Math.sin(ph) * Math.sin(th) * 300;
     }
     const sg = new THREE.BufferGeometry();
     sg.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
     this.stars = new THREE.Points(
       sg,
-      new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }),
+      new THREE.PointsMaterial({ color: 0xffffff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false }),
     );
-    this.skyScene.add(this.stars);
+    // Stars live in the main scene (crisp at any resolution) and follow the camera.
+    this.stars.renderOrder = -1;
+    this.stars.frustumCulled = false;
+    scene.add(this.stars);
 
     this.cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType, generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
     this.cubeCam = new THREE.CubeCamera(1, 2000, this.cubeRT);
@@ -184,6 +187,12 @@ export class Environment {
     this.envRT?.dispose();
     this.envRT = this.pmrem.fromCubemap(this.cubeRT.texture);
     this.scene.environment = this.envRT.texture;
+  }
+
+  /** Keep the star dome centred on the camera. */
+  followCamera(cam: THREE.Vector3) {
+    this.stars.position.copy(cam);
+    this.stars.visible = (this.stars.material as THREE.PointsMaterial).opacity > 0.01;
   }
 
   update(dt: number, focus: THREE.Vector3) {
