@@ -3,6 +3,7 @@ import type { Ability } from './Ability';
 import { Power } from './Power';
 import { StubAbility } from './StubAbility';
 import { FirePower } from './fire/FirePower';
+import { LightningPower } from './lightning/LightningPower';
 import { WaterPower } from './water/WaterPower';
 
 class SimplePower extends Power {
@@ -22,12 +23,7 @@ class SimplePower extends Power {
  */
 export function createPowers(): Power[] {
   return [
-    new SimplePower('lightning', 'Lightning', '#7fd4ff', ICONS.lightning, [
-      new StubAbility('Bolt Strike', 'Hold to charge, release to strike.', ICONS.bolt, 'charge', 22, 0.6),
-      new StubAbility('Chain Lightning', 'Arcs between conductive objects.', ICONS.chain, 'tap', 28, 1.5),
-      new StubAbility('Lightning Step', 'Blink-dash leaving static.', ICONS.dash, 'tap', 18, 0.9),
-      new StubAbility('Storm Call', 'Summon a localized storm.', ICONS.storm, 'tap', 60, 12),
-    ]),
+    new LightningPower(),
     new FirePower(),
     new WaterPower(),
     new SimplePower('earth', 'Earth', '#c08a4a', ICONS.earth, [

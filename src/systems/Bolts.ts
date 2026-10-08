@@ -218,8 +218,13 @@ export class BoltRenderer {
     let n = 0;
     for (const b of this.active) {
       const br = b.brightness;
+      const len = b.a.distanceTo(b.b);
+      const taper = Math.min(3, len * 0.3);
       for (const s of b.segs) {
         if (n >= this.maxSegs) break;
+        // Thin near the origin (usually the player's hands), full width further out.
+        const da = Math.sqrt((s.ax - b.a.x) ** 2 + (s.ay - b.a.y) ** 2 + (s.az - b.a.z) ** 2);
+        const wScale = taper > 0.01 ? Math.min(1, 0.12 + da / taper) : 1;
         const o = n * 4;
         for (let k = 0; k < 4; k++) {
           const v = o + k;
@@ -232,7 +237,7 @@ export class BoltRenderer {
           this.other[v * 3 + 2] = atA ? s.bz : s.az;
           // Side sign flips for the B end because "other" points backwards there.
           this.side[v] = (k % 2 === 0 ? -1 : 1) * (atA ? 1 : -1);
-          this.width[v] = s.w * 3;
+          this.width[v] = s.w * 1.8 * wScale;
           this.color[v * 4] = b.color.r * 2.5;
           this.color[v * 4 + 1] = b.color.g * 2.5;
           this.color[v * 4 + 2] = b.color.b * 2.5;
