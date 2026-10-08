@@ -329,6 +329,46 @@ export class PlayerController {
     }
   }
 
+  /**
+   * Find the nearest position where the player capsule fits, starting at the
+   * given feet position: drops onto the ground below (or above, if buried),
+   * then spirals outwards. Used by teleports and as the "unstuck" fallback.
+   */
+  findFreeSpot(feet: THREE.Vector3, maxRadius = 8, snapToGround = true): THREE.Vector3 | null {
+    const hh = PLAYER.halfHeight;
+    const off = hh + PLAYER.radius + 0.03;
+    const filter = groups(G.PLAYER, ALL_GROUPS & ~G.PLAYER & ~G.SENSOR & ~G.DEBRIS & ~G.NPC);
+    const down = new THREE.Vector3(0, -1, 0);
+    const test = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    const tryAt = (x: number, y: number, z: number): THREE.Vector3 | null => {
+      let fy = y;
+      if (snapToGround) {
+        // Look for a floor from slightly above the target down a few metres.
+        const origin = test.set(x, y + 1.2, z);
+        const hit = this.physics.raycast(origin, down, 30, { groups: filter, exclude: this.collider });
+        if (!hit || hit.normal.y < 0.4) return null;
+        fy = hit.point.y;
+      }
+      center.set(x, fy + off, z);
+      if (this.overlaps(center, hh)) return null;
+      return new THREE.Vector3(x, fy, z);
+    };
+    const direct = tryAt(feet.x, feet.y, feet.z);
+    if (direct) return direct;
+    for (let r = 0.6; r <= maxRadius; r += 0.6) {
+      const steps = Math.max(8, Math.round(r * 6));
+      for (let i = 0; i < steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        for (const dy of [0, 1.5, 3]) {
+          const p = tryAt(feet.x + Math.cos(a) * r, feet.y + dy, feet.z + Math.sin(a) * r);
+          if (p) return p;
+        }
+      }
+    }
+    return null;
+  }
+
   /** Set each frame by the game from the jump action's held state (for swimming up). */
   jumpHeld = false;
 
