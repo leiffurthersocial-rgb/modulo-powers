@@ -1,0 +1,33 @@
+{
+  "name": "modulo-powers",
+  "version": "1.0.0",
+  "description": "Modulo: Powers — a 3D superpower sandbox (Three.js + Rapier)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leiffurthersocial-rgb/modulo-powers.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/leiffurthersocial-rgb/modulo-powers/issues"
+  },
+  "homepage": "https://github.com/leiffurthersocial-rgb/modulo-powers#readme",
+  "dependencies": {
+    "@dimforge/rapier3d-compat": "^0.21.0",
+    "postprocessing": "^6.39.5",
+    "three": "^0.186.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.186.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.3"
+  },
+  "private": true,
+  "type": "module"
+}
