@@ -7,6 +7,8 @@ export interface PauseMenuActions {
   cycleQuality(): string;
   togglePostFX(): boolean;
   toggleView(): string;
+  toggleGrass(): boolean;
+  toggleClouds(): boolean;
 }
 
 /** Pause menu: shows the full controls list plus a few settings. */
@@ -16,6 +18,8 @@ export class PauseMenu {
   private qualityBtn: HTMLButtonElement;
   private fxBtn: HTMLButtonElement;
   private viewBtn: HTMLButtonElement;
+  private grassBtn: HTMLButtonElement;
+  private cloudBtn: HTMLButtonElement;
 
   constructor(parent: HTMLElement, actions: PauseMenuActions, state: { headBob: boolean; quality: string; postFX: boolean; view: string }) {
     this.root = el('div', 'overlay hidden');
@@ -34,6 +38,10 @@ export class PauseMenu {
     this.fxBtn.onclick = () => this.setFX(actions.togglePostFX());
     this.viewBtn = el('button', 'btn', '', row);
     this.viewBtn.onclick = () => this.setView(actions.toggleView());
+    this.grassBtn = el('button', 'btn', '', row);
+    this.grassBtn.onclick = () => this.setGrass(actions.toggleGrass());
+    this.cloudBtn = el('button', 'btn', '', row);
+    this.cloudBtn.onclick = () => this.setClouds(actions.toggleClouds());
     this.setBob(state.headBob);
     this.setQuality(state.quality);
     this.setFX(state.postFX);
@@ -50,6 +58,13 @@ export class PauseMenu {
   setFX(on: boolean) {
     this.fxBtn.textContent = `Post FX: ${on ? 'On' : 'Off'}`;
   }
+  setGrass(on: boolean) {
+    this.grassBtn.textContent = `Grass: ${on ? 'On' : 'Off'}`;
+  }
+  setClouds(on: boolean) {
+    this.cloudBtn.textContent = `Clouds: ${on ? 'On' : 'Off'}`;
+  }
+
   setView(v: string) {
     this.viewBtn.textContent = `View: ${v}`;
   }

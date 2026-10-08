@@ -27,6 +27,8 @@ import { Signals } from '../systems/Signals';
 import { InteractionSystem } from '../systems/Interaction';
 import { GuardSystem } from '../npc/Guards';
 import { Checkpoints } from '../systems/Checkpoints';
+import { Grass } from '../world/Grass';
+import { Clouds } from '../world/Clouds';
 import { FighterSystem } from '../npc/Fighters';
 import { ArenaSystem, buildArenaStatic, spawnArena } from '../world/zones/arena';
 import { Ambience } from '../systems/Ambience';
@@ -130,6 +132,8 @@ export class Game {
   /** Fight arena (set up by the arena builder). */
   arena: ArenaSystem | null = null;
   fighters!: FighterSystem;
+  grass!: Grass;
+  clouds!: Clouds;
   checkpoints!: Checkpoints;
   /** Materials of walls the player can phase through (ghosted while phasing). */
   readonly phaseMaterials = new Set<THREE.Material>();
@@ -223,7 +227,11 @@ export class Game {
     this.checkpoints = new Checkpoints(this);
     this.fighters = new FighterSystem(this);
     this.arena = new ArenaSystem(this, this.fighters);
-    this.systems.push(this.guards, this.checkpoints, this.fighters, this.arena, new Ambience(this));
+    this.grass = new Grass(this, this.world.terrain);
+    this.clouds = new Clouds(this);
+    this.grass.setEnabled(loadFlag('modulo.grass', true));
+    this.clouds.setEnabled(loadFlag('modulo.clouds', true));
+    this.systems.push(this.guards, this.checkpoints, this.fighters, this.arena, new Ambience(this), this.grass, this.clouds);
     this.powers = new PowerManager(this, createPowers());
     this.powers.onChange = (p) => this.onPowerChanged(p.color);
     this.powerHud = new PowerHud(this.hud.root, this.powers, this.energy);
@@ -254,9 +262,13 @@ export class Game {
           this.rig.toggleView();
           return this.viewLabel;
         },
+        toggleGrass: () => this.toggleGrass(),
+        toggleClouds: () => this.toggleClouds(),
       },
       { headBob: this.rig.headBob, quality: this.quality.preset.label, postFX: this.quality.postFX, view: this.viewLabel },
     );
+    this.pauseMenu.setGrass(this.grass.enabled);
+    this.pauseMenu.setClouds(this.clouds.enabled);
     this.startOverlay = new StartOverlay(ui, () => this.start());
     this.input.onAction = (a) => this.onAction(a);
 
@@ -376,6 +388,7 @@ export class Game {
     this.camera.far = q.viewDistance;
     this.camera.updateProjectionMatrix();
     this.world.vegetation.setDensity(q.vegetationDensity);
+    this.grass?.setDensity(q.vegetationDensity);
     this.renderer.shadowMap.enabled = q.shadows;
     this.quality.applyPixelRatio();
     this.lights?.setCount(q.maxDynamicLights);
@@ -421,6 +434,12 @@ export class Game {
       case 'mute':
         audio.setMuted(!audio.muted);
         this.toasts.show(audio.muted ? 'Sound muted' : 'Sound on');
+        return;
+      case 'toggleGrass':
+        this.toggleGrass();
+        return;
+      case 'toggleClouds':
+        this.toggleClouds();
         return;
       case 'quality': {
         const q = this.quality.cycle();
@@ -551,6 +570,24 @@ export class Game {
   shockPlayer(_amount: number, _from?: THREE.Vector3) {
     audio.crackle(this.player.curPos, 0.25);
     this.particles.emit(FX.electric, this.player.curPos, 6, { spread: Math.PI, speed: [1, 3], jitter: 0.4 });
+  }
+
+  toggleGrass(): boolean {
+    const on = !this.grass.enabled;
+    this.grass.setEnabled(on);
+    saveFlag('modulo.grass', on);
+    this.pauseMenu?.setGrass(on);
+    this.toasts.show(on ? 'Grass on' : 'Grass off');
+    return on;
+  }
+
+  toggleClouds(): boolean {
+    const on = !this.clouds.enabled;
+    this.clouds.setEnabled(on);
+    saveFlag('modulo.clouds', on);
+    this.pauseMenu?.setClouds(on);
+    this.toasts.show(on ? 'Clouds on' : 'Clouds off');
+    return on;
   }
 
   /** Sandbox mode: infinite energy + no damage, health bar hidden. */
@@ -752,3 +789,20 @@ export class Game {
 }
 
 const UP = new THREE.Vector3(0, 1, 0);
+
+function loadFlag(key: string, def: boolean): boolean {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? def : v === '1';
+  } catch {
+    return def;
+  }
+}
+
+function saveFlag(key: string, on: boolean) {
+  try {
+    localStorage.setItem(key, on ? '1' : '0');
+  } catch {
+    /* storage unavailable */
+  }
+}

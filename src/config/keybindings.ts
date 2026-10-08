@@ -50,7 +50,9 @@ export type Action =
   | 'infiniteEnergy'
   | 'slowMo'
   | 'quality'
-  | 'respawn';
+  | 'respawn'
+  | 'toggleGrass'
+  | 'toggleClouds';
 
 export const KEYBINDINGS: Record<Action, string[]> = {
   forward: ['KeyW'],
@@ -92,6 +94,8 @@ export const KEYBINDINGS: Record<Action, string[]> = {
   slowMo: ['KeyK'],
   quality: ['KeyL'],
   respawn: ['Backspace'],
+  toggleGrass: ['KeyU'],
+  toggleClouds: ['KeyI'],
 };
 
 /** Human-readable descriptions, used by the help overlay and pause menu. */
@@ -135,6 +139,8 @@ export const ACTION_LABELS: Record<Action, string> = {
   slowMo: 'Slow motion',
   quality: 'Cycle quality',
   respawn: 'Respawn at checkpoint',
+  toggleGrass: 'Grass on / off',
+  toggleClouds: 'Clouds on / off',
 };
 
 /** Groups for the help overlay. */
@@ -177,6 +183,8 @@ export const ACTION_GROUPS: { title: string; actions: Action[] }[] = [
       'infiniteEnergy',
       'slowMo',
       'quality',
+      'toggleGrass',
+      'toggleClouds',
       'respawn',
     ],
   },

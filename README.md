@@ -31,18 +31,19 @@ npm run preview   # serve the production build
 | Ctrl | Crouch (dive in water) |
 | Arrow keys | Look (smooth acceleration). Mouse, trackpad and touch-drag also work |
 | F | Interact (levers, generators, gates, treasures…) |
-| V | First / third person |
-| 1 – 5 | Lightning · Fire · Water · Earth · Shadow |
+| O | First / third person |
+| 1 – 7 | Lightning · Fire · Water · Earth · Shadow · Nen · Assassin |
 | Q / E | Previous / next power |
-| Z X C B | Abilities 1–4 (left mouse = Z, right mouse = X) |
+| Z X C B V G | Abilities 1–6 (left mouse = Z, right mouse = X, middle mouse = V) |
 | P | Pause / resume (shows controls and settings) |
 | R | Reset the map (props, fires, ice, puzzles; you stay put) |
 | Shift+R | Full reset (map + back to spawn, energy refilled) |
-| T, then 1–6 | Teleport: Hub, Lightning, Fire, Water, Earth, Shadow |
+| T, then 1–7 | Teleport: Hub, Lightning, Fire, Water, Earth, Shadow, Fight Arena |
 | N | Day / night |
 | H | Help overlay (all controls and every ability) |
 | M | Mute |
-| G | Infinite energy (sandbox) |
+| J | Sandbox mode: no damage, infinite energy, health bar hidden |
+| U / I | Grass / clouds on or off (also in the pause menu) |
 | K | Slow motion (0.25×) |
 | L | Cycle quality: Low / Medium / High |
 | Backspace | Respawn at the last checkpoint |
@@ -52,13 +53,27 @@ default bindings avoid Cmd, function keys and the numpad.
 
 ### Powers
 
-| | Z | X | C | B |
-| --- | --- | --- | --- | --- |
-| **1 Lightning** | Bolt Strike (hold to charge) | Chain Lightning | Lightning Step (dash, works mid-air) | Storm Call |
-| **2 Fire** | Fireball (hold to charge) | Flamethrower (fuel tank) | Flame Wall (crouch: ring) | Fire Thrust (rocket jump / hover) |
-| **3 Water** | Water Jet | Tidal Wave (you surf it) | Freeze (water → walkable ice) | Hydro Shield (walk on water) |
-| **4 Earth** | Raise Pillar (charge = launcher) | Boulder Pull & Throw | Earthquake (ground pound in air) | Stone Armor · crouch+B: Dig |
-| **5 Shadow** | Invisibility | Shadow Blink (hold to aim) | Phase through walls | Shadow Clone · crouch+B: tendrils |
+| | Z | X | C | B | V | G |
+| --- | --- | --- | --- | --- | --- | --- |
+| **1 Lightning** | Bolt Strike (sky bolt, hold to charge) | Chain Lightning | Lightning Step | Storm Call | Thunder Palm | Godspeed |
+| **2 Fire** | Fireball | Flamethrower | Flame Wall (crouch: ring) | Fire Thrust | Blazing Fist | Meteor Dive |
+| **3 Water** | Water Jet | Tidal Wave (surf it) | Freeze | Hydro Shield | Ice Spears | Water Whip |
+| **4 Earth** | Raise Pillar | Boulder Throw | Earthquake | Stone Armor · crouch: Dig | Rock Fist | Stone Spikes |
+| **5 Shadow** | Invisibility (total) | Shadow Blink | Phase | Shadow Clone (fights) | Cursed Strike (Black Flash) | Assassinate |
+| **6 Nen** | Jajanken: Rock | Jajanken: Paper | Jajanken: Scissors | Ren | En | Zetsu |
+| **7 Assassin** | Claw Strike | Rhythm Echo | Flash Step | Yo-yo | Thunderbolt | Assassin Mode |
+
+Every power has close-combat or attack abilities. Melee moves auto-lunge at the
+target you're facing, chain into combos, can crit (and backstab unaware
+targets), and land with hit-stop, damage numbers and a combo counter.
+
+### Health and combat
+
+You have a health bar. Only enemies (arena fighters, guards) and enormous
+falls hurt you; **you're immune to your own powers**. Health regenerates when
+you stay out of combat for a few seconds. Sandbox mode (**J**) turns damage off
+and hides the bar. Everyone gets a double jump, and big drops land with a
+ground-cracking superhero landing.
 
 Abilities share one energy bar, and each has its own cost and cooldown. The HUD
 shows cooldown sweeps, charge, the flamethrower's fuel, and which ability you
@@ -86,6 +101,7 @@ training dummies and props. From there:
 - **Water:** a swimmable lake with buoyancy, a dock, floating crates, an island (reach it with ice bridges or by water-walking), three braziers to douse to open a shrine, and a river with a current and a waterwheel.
 - **Earth:** a canyon you cross by raising pillars from its floor, destructible brick walls, unstable stacks, boulders, a mud pit, and two 400 kg pressure plates (use boulders, or stand on one in Stone Armor).
 - **Shadow:** a walled compound with 5 patrolling guards. Each guard has a vision cone, hearing, and a suspicion state (patrol → suspicious → alert → searching). The barracks and vault have no doors (Phase in), there's a rooftop prize (Blink up), a dark corridor, lamps, and a day/night lever.
+- **Fight Arena** (T then 7): press F on the rune stone for 5 waves of brutes and orb-casters, ending with the Champion boss.
 - **Shared areas:** a shooting range (10–70 m), a physics stress-test heap, a parkour course, and a combo vault that needs generator power *and* a basin filled with water.
 
 ## Performance
