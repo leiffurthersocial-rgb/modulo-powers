@@ -592,7 +592,7 @@ export const FX = {
     sizeEnd: 2.2,
     color0: 0x0d0618,
     color1: 0x2a1450,
-    alpha: 0.7,
+    alpha: 0.5,
     fadeIn: 0.1,
     buoyancy: 0.8,
     drag: 2,

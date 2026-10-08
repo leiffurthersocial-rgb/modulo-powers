@@ -33,6 +33,7 @@ import { LightPool } from '../systems/Lights';
 import { MudSystem } from '../systems/Mud';
 import { FX, ParticleSystem } from '../systems/Particles';
 import { Reactions } from '../systems/Reactions';
+import { StealthSystem } from '../systems/Stealth';
 import type { SurfaceKind } from '../config/reactions';
 import { ProjectileSystem } from '../powers/common';
 import { buildHubStatic, spawnHubProps } from '../world/zones/hub';
@@ -91,6 +92,9 @@ export class Game {
   readonly waterRenderer: WaterRenderer;
   /** True while the Hydro Shield is up (set by the Water power). */
   shielded = false;
+  readonly stealth: StealthSystem;
+  /** Materials of walls the player can phase through (ghosted while phasing). */
+  readonly phaseMaterials = new Set<THREE.Material>();
   /** Stone Armor active (Earth power). */
   armored = false;
   /** Player is tunnelling underground (Earth: Dig). */
@@ -109,7 +113,7 @@ export class Game {
   private lastDenied = 0;
 
   constructor(
-    private canvas: HTMLCanvasElement,
+    readonly canvas: HTMLCanvasElement,
     ui: HTMLElement,
   ) {
     this.renderer = new THREE.WebGLRenderer({
@@ -167,6 +171,8 @@ export class Game {
 
     this.hud = new Hud(ui);
     this.toasts = new Toasts(ui);
+    this.stealth = new StealthSystem(this);
+    this.systems.push(this.stealth);
     this.powers = new PowerManager(this, createPowers());
     this.powers.onChange = (p) => this.onPowerChanged(p.color);
     this.powerHud = new PowerHud(this.hud.root, this.powers, this.energy);

@@ -30,6 +30,7 @@ export interface ExplosionOpts {
 export function explosion(game: Game, pos: THREE.Vector3, o: ExplosionOpts) {
   const g = game;
   const n = o.normal ?? UP;
+  const look = o.look ?? 'fire';
   g.reactions.applyArea(o.element, pos, o.radius, o.amount, { impulse: o.impulse });
   if (o.damage) {
     for (const e of g.entities.nearby(pos, o.radius, TMP_LIST)) {
@@ -48,6 +49,11 @@ export function explosion(game: Game, pos: THREE.Vector3, o: ExplosionOpts) {
     dp.normalize().multiplyScalar(o.playerPush * k * (g.shielded || g.armored ? 0.4 : 1));
     g.player.thrust(dp);
   }
+  // Noise and light give the player away.
+  g.stealth.noise(pos, o.radius * 10);
+  if (look === 'fire' || look === 'electric') {
+    if (dist < o.radius * 5) g.stealth.reveal = Math.max(g.stealth.reveal, 1.2);
+  }
   // Camera feedback by distance.
   const camD = g.camera.position.distanceTo(pos);
   g.rig.shake(Math.min(0.8, (o.radius * 0.6) / Math.max(1.5, camD * 0.5)));
@@ -58,7 +64,6 @@ export function explosion(game: Game, pos: THREE.Vector3, o: ExplosionOpts) {
     if (pos.y - gy < 1.5) g.decals.add(o.decal, TMP2.set(pos.x, gy, pos.z), g.world.terrain.normalAt(pos.x, pos.z), o.radius * 1.4, 60);
     else g.decals.add(o.decal, pos, n, o.radius * 0.9, 60);
   }
-  const look = o.look ?? 'fire';
   const r = o.radius;
   const P = g.particles;
   const burst = (preset: ParticlePreset, count: number, speed: [number, number], sizeMul = 1) =>

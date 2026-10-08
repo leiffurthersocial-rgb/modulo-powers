@@ -168,6 +168,15 @@ export class Hands {
     this.group.visible = v;
   }
 
+  /** Fade the hands (invisibility / phase). */
+  setOpacity(o: number) {
+    for (const m of [this.skin, this.sleeve]) {
+      m.transparent = o < 0.999;
+      m.opacity = o;
+      m.depthWrite = o > 0.5;
+    }
+  }
+
   update(dt: number, speed: number, grounded: boolean, yaw: number, pitch: number) {
     // Walk bob.
     const moving = grounded ? Math.min(1, speed / 8) : 0;
