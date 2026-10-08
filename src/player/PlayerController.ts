@@ -141,6 +141,15 @@ export class PlayerController {
     }
   }
 
+  /** Velocity change that can lift off the ground (rocket jumps, thrust, launches). */
+  thrust(dv: THREE.Vector3) {
+    this.velocity.add(dv);
+    if (dv.y > 0) {
+      this.jumping = true;
+      this.grounded = false;
+    }
+  }
+
   /** Instantly move the player (feet position). Clears velocity unless `keepVelocity`. */
   teleport(feet: THREE.Vector3, keepVelocity = false) {
     const c = feet.clone();

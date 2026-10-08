@@ -2,6 +2,7 @@ import { ICONS } from '../ui/icons';
 import type { Ability } from './Ability';
 import { Power } from './Power';
 import { StubAbility } from './StubAbility';
+import { FirePower } from './fire/FirePower';
 
 class SimplePower extends Power {
   constructor(
@@ -26,12 +27,7 @@ export function createPowers(): Power[] {
       new StubAbility('Lightning Step', 'Blink-dash leaving static.', ICONS.dash, 'tap', 18, 0.9),
       new StubAbility('Storm Call', 'Summon a localized storm.', ICONS.storm, 'tap', 60, 12),
     ]),
-    new SimplePower('fire', 'Fire', '#ff7a2f', ICONS.fire, [
-      new StubAbility('Fireball', 'Hold to charge an arcing fireball.', ICONS.fireball, 'charge', 20, 0.5),
-      new StubAbility('Flamethrower', 'Continuous cone of fire.', ICONS.flamethrower, 'hold', 16, 0.3),
-      new StubAbility('Flame Wall', 'Wall of fire at the aim point.', ICONS.wall, 'tap', 30, 4),
-      new StubAbility('Fire Thrust', 'Jet-boost with flames.', ICONS.thrust, 'hold', 22, 0.2),
-    ]),
+    new FirePower(),
     new SimplePower('water', 'Water', '#3fa9f5', ICONS.water, [
       new StubAbility('Water Jet', 'High-pressure stream.', ICONS.jet, 'hold', 12, 0.2),
       new StubAbility('Tidal Wave', 'Forward surge.', ICONS.wave, 'tap', 40, 5),

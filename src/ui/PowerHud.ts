@@ -91,14 +91,14 @@ export class PowerHud {
     p.abilities.forEach((a, i) => {
       const s = this.slots[i];
       const cdf = a.cooldownFraction;
-      const state = `${cdf.toFixed(2)}|${a.active}|${a.affordable}|${p.lastAbility === i}|${a.charge.toFixed(2)}`;
+      const state = `${cdf.toFixed(2)}|${a.active}|${a.affordable}|${p.lastAbility === i}|${a.charge.toFixed(2)}|${a.meter?.toFixed(2)}`;
       if (state === s.last) return;
       s.last = state;
       s.cd.style.background = cdf > 0 ? `conic-gradient(rgba(0,0,0,0.65) ${cdf * 360}deg, transparent 0)` : 'none';
       s.root.classList.toggle('active', a.active);
       s.root.classList.toggle('poor', !a.affordable && !a.active);
       s.root.classList.toggle('last', p.lastAbility === i);
-      s.charge.style.width = a.mode === 'charge' && a.active ? `${a.charge * 100}%` : '0';
+      s.charge.style.width = a.mode === 'charge' && a.active ? `${a.charge * 100}%` : a.meter !== undefined ? `${a.meter * 100}%` : '0';
     });
     p.abilities.forEach((a, i) => {
       if (a.mode === 'charge' && a.active) charging = i;

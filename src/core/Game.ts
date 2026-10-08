@@ -33,6 +33,7 @@ import { MudSystem } from '../systems/Mud';
 import { FX, ParticleSystem } from '../systems/Particles';
 import { Reactions } from '../systems/Reactions';
 import type { SurfaceKind } from '../config/reactions';
+import { ProjectileSystem } from '../powers/common';
 import { buildHubStatic, spawnHubProps } from '../world/zones/hub';
 import { audio } from './Audio';
 import { Input } from './Input';
@@ -85,6 +86,7 @@ export class Game {
   readonly electricity: ElectricitySystem;
   readonly destruction: DestructionSystem;
   readonly mud: MudSystem;
+  readonly projectiles: ProjectileSystem;
   private powerHud: PowerHud;
   private help: HelpOverlay;
   private teleportMenu: TeleportMenu;
@@ -139,12 +141,13 @@ export class Game {
     this.electricity = new ElectricitySystem(this);
     this.destruction = new DestructionSystem(this);
     this.mud = new MudSystem(this);
+    this.projectiles = new ProjectileSystem(this);
     this.reactions.surfacesAt = (p, r) => this.surfacesAt(p, r);
     this.reactions.registerSurfaceEffect('electrifyWater', (c) => {
       const b = this.water.bodyAt(c, 2) ?? this.water.bodyUnder(c.x, c.z);
       if (b) this.water.electrify(b, 6, c);
     });
-    this.systems.push(this.reactions, this.water, this.fire, this.electricity, this.destruction, this.mud);
+    this.systems.push(this.reactions, this.water, this.fire, this.electricity, this.destruction, this.mud, this.projectiles);
 
     this.player = new PlayerController(this.physics, this.world.spawn);
     this.rig = new CameraRig(this.camera, this.input, this.physics);

@@ -45,6 +45,8 @@ export abstract class Ability {
   cooldownLeft = 0;
   active = false;
   charge = 0;
+  /** Optional 0..1 gauge shown on the HUD slot (fuel, armour...). */
+  meter: number | undefined = undefined;
   /** Seconds the ability has been active this activation. */
   activeTime = 0;
 
