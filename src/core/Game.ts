@@ -21,6 +21,11 @@ import { EntityManager } from '../world/EntityManager';
 import { Environment } from '../world/Environment';
 import { registerBasicProps } from '../world/props/basic';
 import { registerDummy } from '../world/props/dummy';
+import { registerMachines } from '../world/props/machines';
+import { Signals } from '../systems/Signals';
+import { InteractionSystem } from '../systems/Interaction';
+import { GuardSystem } from '../npc/Guards';
+import { Checkpoints } from '../systems/Checkpoints';
 import { World } from '../world/World';
 import { WaterSystem } from '../world/Water';
 import { WaterRenderer } from '../world/WaterRenderer';
@@ -36,7 +41,14 @@ import { Reactions } from '../systems/Reactions';
 import { StealthSystem } from '../systems/Stealth';
 import type { SurfaceKind } from '../config/reactions';
 import { ProjectileSystem } from '../powers/common';
+import { StaticBuilder } from '../world/zones/build';
+import { buildEarthStatic, spawnEarth } from '../world/zones/earth';
+import { buildExtrasStatic, spawnExtras } from '../world/zones/extras';
+import { buildFireStatic, spawnFire } from '../world/zones/fire';
 import { buildHubStatic, spawnHubProps } from '../world/zones/hub';
+import { buildLightningStatic, spawnLightning } from '../world/zones/lightning';
+import { buildShadowStatic, spawnShadow } from '../world/zones/shadow';
+import { buildWaterStatic, spawnWater } from '../world/zones/water';
 import { audio } from './Audio';
 import { Input } from './Input';
 import { Loop } from './Loop';
@@ -93,6 +105,10 @@ export class Game {
   /** True while the Hydro Shield is up (set by the Water power). */
   shielded = false;
   readonly stealth: StealthSystem;
+  readonly signals = new Signals();
+  interaction!: InteractionSystem;
+  guards!: GuardSystem;
+  checkpoints!: Checkpoints;
   /** Materials of walls the player can phase through (ghosted while phasing). */
   readonly phaseMaterials = new Set<THREE.Material>();
   /** Stone Armor active (Earth power). */
@@ -172,7 +188,12 @@ export class Game {
     this.hud = new Hud(ui);
     this.toasts = new Toasts(ui);
     this.stealth = new StealthSystem(this);
-    this.systems.push(this.stealth);
+    this.interaction = new InteractionSystem(this);
+    this.systems.push(this.stealth, this.signals, this.interaction);
+    registerMachines(this);
+    this.guards = new GuardSystem(this);
+    this.checkpoints = new Checkpoints(this);
+    this.systems.push(this.guards, this.checkpoints);
     this.powers = new PowerManager(this, createPowers());
     this.powers.onChange = (p) => this.onPowerChanged(p.color);
     this.powerHud = new PowerHud(this.hud.root, this.powers, this.energy);
@@ -227,10 +248,28 @@ export class Game {
     this.startOverlay.ready();
   }
 
+  /**
+   * Build the test map. Static geometry is merged per material; every prop
+   * spawned while `recording` is part of the initial map that R restores.
+   */
   private buildMap() {
-    buildHubStatic(this);
+    const sb = new StaticBuilder(this);
+    buildHubStatic(this, sb);
+    buildLightningStatic(this, sb);
+    buildFireStatic(this, sb);
+    buildWaterStatic(this, sb);
+    buildEarthStatic(this, sb);
+    buildShadowStatic(this, sb);
+    buildExtrasStatic(this, sb);
+    sb.flush('level');
     this.entities.recording = true;
     spawnHubProps(this);
+    spawnLightning(this);
+    spawnFire(this);
+    spawnWater(this);
+    spawnEarth(this);
+    spawnShadow(this);
+    spawnExtras(this);
     this.entities.recording = false;
   }
 
@@ -407,11 +446,13 @@ export class Game {
   /** R: restore every prop, fire, ice, decal and machine. The player stays put. */
   resetMap(silent = false) {
     this.powers.reset();
-    this.entities.reset();
+    // Systems first (they clear fires, mud, decals...), then respawn the map,
+    // whose props may re-register state with those systems.
     for (const s of this.systems) s.reset?.();
     this.particles.clear();
     this.bolts.clear();
     this.decals.reset();
+    this.entities.reset();
     this.env.setStorm(0);
     if (!silent) this.toasts.show('Map reset');
   }
@@ -533,6 +574,10 @@ export class Game {
       audio.impact(e.center(this.tmp), energy, e.frozen > 0.5 ? 'ice' : e.mat.sound);
       if (e1) this.destruction.onImpact(e1, force);
       if (e2) this.destruction.onImpact(e2, force);
+      if (force > 1500) {
+        e1?.onHit?.(force);
+        e2?.onHit?.(force);
+      }
     };
   }
 
@@ -559,6 +604,7 @@ export class Game {
     this.rig.updateLook(realDt, active && !this.teleportMenu.visible);
     this.player.interpolate(time.paused ? 1 : alpha);
     this.physics.interpolate(time.paused ? 1 : alpha);
+    this.guards.setAlpha(time.paused ? 1 : alpha);
 
     this.powers.handleInput(active && !this.teleportMenu.visible);
     this.powers.update(dt);

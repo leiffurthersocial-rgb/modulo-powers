@@ -41,6 +41,8 @@ export function buildProp(em: EntityManager, spec: PropSpec, type: string, o: Bu
   if (o.linearDamping !== undefined) desc.setLinearDamping(o.linearDamping);
   if (o.angularDamping !== undefined) desc.setAngularDamping(o.angularDamping);
   if (o.ccd) desc.setCcdEnabled(true);
+  // Pre-built stacks and walls start asleep so they stay put until disturbed.
+  if (spec.data?.sleep) desc.setSleeping(true);
   const body = world.createRigidBody(desc);
   e.body = body;
   const group = o.group ?? (fixed ? G.STATIC : G.DYNAMIC);
@@ -164,7 +166,7 @@ export function registerBasicProps(em: EntityManager) {
     const d = s.d ?? w;
     const material = s.material ?? 'stone';
     const kind = material === 'brick' ? 'bricks' : 'stone';
-    const m = mesh(boxGeo(w, h, d, 0.03), texturedMaterial(kind, { key: `block-${kind}` }));
+    const m = mesh(boxGeo(w, h, d, 0.03), texturedMaterial(kind, { color: kind === 'bricks' ? 0xb8735a : 0xa89e92, key: `block-${kind}` }));
     return buildProp(em, s, 'block', {
       material,
       object: m,

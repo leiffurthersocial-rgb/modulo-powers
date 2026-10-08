@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Game, GameSystem } from '../core/Game';
+import { Entity } from '../world/Entity';
 import { FX } from './Particles';
 
 interface MudPatch {
@@ -20,11 +21,26 @@ export class MudSystem implements GameSystem {
 
   constructor(private game: Game) {
     game.reactions.registerSurfaceEffect('mud', (c, r, amt) => this.add(c, Math.max(1.2, r), amt));
+    // A permanent mud pit placed by a level builder (re-created on reset).
+    game.entities.registerFactory('mudPit', (s, em) => {
+      const e = new Entity('mudPit', 'dirt', new THREE.Group());
+      e.radius = s.w ?? 4;
+      e.object.position.set(s.x, s.y, s.z);
+      em.add(e);
+      this.add(new THREE.Vector3(s.x, s.y, s.z), s.w ?? 4, 1, true);
+      return e;
+    });
     game.reactions.registerSurfaceEffect('dryMud', (c, r) => this.dry(c, r));
   }
 
-  add(c: THREE.Vector3, r: number, amount = 1) {
+  add(c: THREE.Vector3, r: number, amount = 1, permanent = false) {
     const g = this.game;
+    if (permanent) {
+      this.patches.push({ x: c.x, z: c.z, r, life: Infinity });
+      const y = g.world.heightAt(c.x, c.z);
+      g.decals.add('mud', this.tmp.set(c.x, y, c.z), g.world.terrain.normalAt(c.x, c.z), r * 2.2, 1e9, 1);
+      return;
+    }
     // Merge with an existing nearby patch.
     for (const p of this.patches) {
       if (Math.hypot(p.x - c.x, p.z - c.z) < p.r) {
@@ -41,7 +57,7 @@ export class MudSystem implements GameSystem {
   }
 
   dry(c: THREE.Vector3, r: number) {
-    this.patches = this.patches.filter((p) => Math.hypot(p.x - c.x, p.z - c.z) > p.r + r);
+    this.patches = this.patches.filter((p) => p.life === Infinity || Math.hypot(p.x - c.x, p.z - c.z) > p.r + r);
   }
 
   /** 0..1 how muddy the ground is at a point. */

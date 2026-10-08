@@ -223,6 +223,7 @@ export class FireSystem implements GameSystem {
     let total = 0;
     for (const e of this.burning) {
       const c = e.center(this.tmp);
+      c.y += e.fireOffset;
       const size = Math.min(3, Math.max(0.3, e.radius));
       const f = Math.min(1, e.fuel * 3 + 0.3);
       const top = TMP_T.copy(c).setY(c.y + size * 0.35);

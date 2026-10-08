@@ -46,6 +46,9 @@ export class WaterSystem implements GameSystem {
   private zapTimer = 0;
   private tmp = new THREE.Vector3();
   private shockCooldown = 0;
+  /** Positions of rocks currently blocking the river (refreshed periodically). */
+  private dams: THREE.Vector3[] = [];
+  private damTimer = 0;
 
   constructor(private game: Game) {
     const shape = game.world.terrain.shape;
@@ -89,11 +92,34 @@ export class WaterSystem implements GameSystem {
     const a = RIVER.points[r.seg];
     const b = RIVER.points[r.seg + 1];
     out.set(b[0] - a[0], 0, b[1] - a[1]).normalize();
-    return out.multiplyScalar(RIVER.current);
+    // Rocks / pillars placed in the river upstream dam the flow.
+    let dam = 1;
+    for (const d of this.dams) {
+      const rel = (d.x - x) * out.x + (d.z - z) * out.z;
+      if (rel < 0 && rel > -30) dam *= 0.3;
+    }
+    return out.multiplyScalar(RIVER.current * dam);
+  }
+
+  private refreshDams() {
+    const shape = this.game.world.terrain.shape;
+    this.dams.length = 0;
+    for (const e of this.game.entities.list) {
+      if (e.dead || !(e.tags.has('pillar') || e.type === 'boulder' || e.type === 'block')) continue;
+      const c = e.center(new THREE.Vector3());
+      if (shape.riverDistance(c.x, c.z).d < RIVER.width * 0.5 + 0.5 && c.y < WORLD.waterLevel + 3) this.dams.push(c);
+    }
   }
 
   fixedUpdate(dt: number) {
     const g = this.game;
+    this.damTimer -= dt;
+    if (this.damTimer <= 0) {
+      this.damTimer = 0.5;
+      const before = this.dams.length;
+      this.refreshDams();
+      if (this.dams.length > before && before === 0) g.toasts.show('The river is dammed!', '#3fa9f5');
+    }
     // Buoyancy + drag for dynamic props.
     for (const e of g.entities.list) {
       if (!e.body || !e.body.isDynamic() || e.dead) continue;

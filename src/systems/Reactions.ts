@@ -43,7 +43,8 @@ const EFFECTS: Record<EffectName, EffectFn> = {
   },
   melt: (_s, e, v) => {
     if (e.frozen <= 0) return;
-    e.frozen = Math.max(0, e.frozen - v);
+    // Big blocks of ice take longer to melt.
+    e.frozen = Math.max(0, e.frozen - v / Math.max(1, e.volume * 0.5));
     if (e.mat.id !== 'ice') e.wetness = Math.min(1, e.wetness + v * 0.5);
   },
   charge: (_s, e, v) => {

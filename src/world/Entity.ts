@@ -45,6 +45,8 @@ export class Entity {
   colliders: RAPIER.Collider[] = [];
   object: THREE.Object3D;
   visual: EntityVisual;
+  /** Height above the body origin where flames appear (braziers, tall things). */
+  fireOffset = 0;
   /** Approximate volume (m³) for fuel/buoyancy. */
   volume = 1;
   /** Bounding radius (m) for area queries. */
@@ -75,6 +77,8 @@ export class Entity {
   update?: (dt: number) => void;
   /** Called when an element hits this entity (generators, braziers, plates...). */
   onElement?: (kind: ElementKind, amount: number, from?: THREE.Vector3) => void;
+  /** Called on a hard physical impact (contact force in newtons). */
+  onHit?: (force: number) => void;
   /** Called when the entity takes damage (dummies, guards, destructibles). */
   onDamage?: (amount: number, kind: ElementKind) => void;
   /** Called by the F key when the player looks at this entity. */

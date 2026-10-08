@@ -168,9 +168,12 @@ class RaisePillar extends Ability {
       g.energy.refund(this.cost * 0.5);
       return;
     }
-    const height = 2 + charge * 5;
-    const riseTime = charge > 0.85 ? 0.16 : 0.55 - charge * 0.2;
     const groundY = t.water ? g.world.heightAt(t.point.x, t.point.z) : t.point.y;
+    // Raising rock from far below (e.g. a canyon floor) makes a taller column
+    // so you can build a way across.
+    const below = Math.max(0, g.player.feet(TMP).y - groundY);
+    const height = Math.min(16, 2 + charge * 5 + below * 0.85);
+    const riseTime = charge > 0.85 ? 0.16 : 0.55 - charge * 0.2 + below * 0.03;
     const [e] = g.entities.spawn({ type: 'pillar', x: t.point.x, y: groundY, z: t.point.z, h: t.water ? height + (t.point.y - groundY) : height, ry: Math.random() * Math.PI, data: { riseTime } });
     this.pillars.push(e);
     while (this.pillars.length > 12) {
