@@ -614,7 +614,7 @@ kbd {
 .hp-bar {
   position: absolute;
   left: max(16px, env(safe-area-inset-left));
-  bottom: max(18px, env(safe-area-inset-bottom));
+  top: max(52px, env(safe-area-inset-top));
   display: flex;
   align-items: center;
   gap: 8px;

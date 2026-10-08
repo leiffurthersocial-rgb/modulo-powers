@@ -17,7 +17,7 @@ export const WORLD = {
   waterLevel: 0,
 };
 
-export type ZoneId = 'hub' | 'lightning' | 'fire' | 'water' | 'earth' | 'shadow';
+export type ZoneId = 'hub' | 'lightning' | 'fire' | 'water' | 'earth' | 'shadow' | 'arena';
 
 export interface ZoneDef {
   id: ZoneId;
@@ -49,6 +49,7 @@ export const ZONES: Record<ZoneId, ZoneDef> = {
   water: { id: 'water', name: 'Water Zone', key: 4, x: 112, z: 150, radius: 70, height: 2, color: '#3fa9f5' },
   earth: { id: 'earth', name: 'Earth Zone', key: 5, x: -112, z: 150, radius: 66, height: 7, color: '#c08a4a' },
   shadow: { id: 'shadow', name: 'Shadow Zone', key: 6, x: -168, z: -62, radius: 62, height: 3.5, color: '#9b7bff' },
+  arena: { id: 'arena', name: 'Fight Arena', key: 7, x: -78, z: 30, radius: 34, height: 3.5, color: '#ff4a3a' },
 };
 
 export const ZONE_LIST: ZoneDef[] = Object.values(ZONES);

@@ -27,6 +27,8 @@ import { Signals } from '../systems/Signals';
 import { InteractionSystem } from '../systems/Interaction';
 import { GuardSystem } from '../npc/Guards';
 import { Checkpoints } from '../systems/Checkpoints';
+import { FighterSystem } from '../npc/Fighters';
+import { ArenaSystem, buildArenaStatic, spawnArena } from '../world/zones/arena';
 import { Ambience } from '../systems/Ambience';
 import { World } from '../world/World';
 import { WaterSystem } from '../world/Water';
@@ -126,7 +128,8 @@ export class Game {
   interaction!: InteractionSystem;
   guards!: GuardSystem;
   /** Fight arena (set up by the arena builder). */
-  arena: { playerDied(): void } | null = null;
+  arena: ArenaSystem | null = null;
+  fighters!: FighterSystem;
   checkpoints!: Checkpoints;
   /** Materials of walls the player can phase through (ghosted while phasing). */
   readonly phaseMaterials = new Set<THREE.Material>();
@@ -218,7 +221,9 @@ export class Game {
     registerMachines(this);
     this.guards = new GuardSystem(this);
     this.checkpoints = new Checkpoints(this);
-    this.systems.push(this.guards, this.checkpoints, new Ambience(this));
+    this.fighters = new FighterSystem(this);
+    this.arena = new ArenaSystem(this, this.fighters);
+    this.systems.push(this.guards, this.checkpoints, this.fighters, this.arena, new Ambience(this));
     this.powers = new PowerManager(this, createPowers());
     this.powers.onChange = (p) => this.onPowerChanged(p.color);
     this.powerHud = new PowerHud(this.hud.root, this.powers, this.energy);
@@ -290,6 +295,7 @@ export class Game {
     buildEarthStatic(this, sb);
     buildShadowStatic(this, sb);
     buildExtrasStatic(this, sb);
+    buildArenaStatic(this, sb);
     sb.flush('level');
     this.entities.recording = true;
     spawnHubProps(this);
@@ -299,6 +305,7 @@ export class Game {
     spawnEarth(this);
     spawnShadow(this);
     spawnExtras(this);
+    spawnArena(this);
     this.entities.recording = false;
   }
 
@@ -693,6 +700,7 @@ export class Game {
     this.player.interpolate(time.paused ? 1 : alpha);
     this.physics.interpolate(time.paused ? 1 : alpha);
     this.guards.setAlpha(time.paused ? 1 : alpha);
+    this.fighters.setAlpha(time.paused ? 1 : alpha);
 
     this.powers.handleInput(active && !this.teleportMenu.visible);
     this.powers.update(dt);
