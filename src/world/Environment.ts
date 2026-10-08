@@ -138,6 +138,15 @@ export class Environment {
     this.setNight(!this.isNight);
   }
 
+  private flashLevel = 0;
+  private baseHemi = 0.3;
+  private baseBg = 1;
+
+  /** Lightning sky-flash: the whole sky and ambient light jump briefly. */
+  flash(amount: number) {
+    this.flashLevel = Math.min(2, this.flashLevel + amount);
+  }
+
   setStorm(amount: number) {
     this.stormTarget = amount;
   }
@@ -167,8 +176,10 @@ export class Environment {
     this.hemi.color.setRGB(lerp(0.75, 0.25, t), lerp(0.84, 0.3, t), lerp(1, 0.55, t));
     this.hemi.groundColor.setRGB(lerp(0.3, 0.05, t), lerp(0.26, 0.05, t), lerp(0.2, 0.08, t));
     this.hemi.intensity = lerp(0.3, 0.35, t) * lerp(1, 0.7, s);
+    this.baseHemi = this.hemi.intensity;
     this.scene.environmentIntensity = lerp(0.75, 0.18, t) * lerp(1, 0.5, s);
     this.scene.backgroundIntensity = lerp(1, 0.6, s);
+    this.baseBg = this.scene.backgroundIntensity;
     const fogDay = new THREE.Color(0.5, 0.6, 0.74);
     const fogNight = new THREE.Color(0.02, 0.03, 0.06);
     const fogStorm = new THREE.Color(0.25, 0.27, 0.3);
@@ -196,6 +207,16 @@ export class Environment {
   }
 
   update(dt: number, focus: THREE.Vector3) {
+    if (this.flashLevel > 0.001) {
+      this.flashLevel *= Math.exp(-dt * 9);
+      const f = this.flashLevel * (0.7 + Math.random() * 0.3);
+      this.hemi.intensity = this.baseHemi + f * 2.5;
+      this.scene.backgroundIntensity = this.baseBg + f * 1.6;
+    } else if (this.flashLevel !== 0) {
+      this.flashLevel = 0;
+      this.hemi.intensity = this.baseHemi;
+      this.scene.backgroundIntensity = this.baseBg;
+    }
     const before = this.nightFactor;
     const beforeStorm = this.stormFactor;
     this.nightFactor += (this.target - this.nightFactor) * damp(1.6, dt);

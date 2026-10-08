@@ -42,17 +42,23 @@ const CLOUD: ParticlePreset = {
 
 /** Strike a point with a full lightning bolt: VFX, light, thunder, reactions. */
 export function strike(g: Game, from: THREE.Vector3, to: THREE.Vector3, strength: number, normal?: THREE.Vector3) {
+  const len = from.distanceTo(to);
+  const sky = len > 20;
+  // Main channel: thick white-hot core, many branches, 2–3 return strokes.
   g.bolts.spawn(from, to, {
-    width: 0.06 + strength * 0.1,
-    jag: 0.12,
-    detail: 7,
-    forkChance: 0.18,
-    life: 0.22 + strength * 0.15,
-    intensity: 1.5 + strength,
+    width: sky ? 0.22 + strength * 0.22 : 0.1 + strength * 0.12,
+    jag: sky ? 0.14 : 0.15,
+    detail: sky ? 7 : 6,
+    forkChance: sky ? 0.32 : 0.2,
+    life: 0.32 + strength * 0.25,
+    strokes: sky ? 2 + Math.floor(Math.random() * 2 + strength) : 1,
+    intensity: 1.6 + strength,
+    glow: 9,
     color: BOLT_BLUE,
   });
-  // A thinner second channel for a more natural look.
-  g.bolts.spawn(from, to, { width: 0.025, jag: 0.16, detail: 6, forkChance: 0.1, life: 0.12, intensity: 1, color: 0xd8ecff });
+  // A faint secondary leader beside it.
+  g.bolts.spawn(from.clone().add(TMP.set((Math.random() - 0.5) * 2, 0, (Math.random() - 0.5) * 2)), to, { width: 0.04, jag: 0.18, detail: 6, forkChance: 0.15, life: 0.1, intensity: 0.6, color: 0xc8b8ff });
+  if (sky) g.env.flash(0.6 + strength * 0.6);
   g.lights.add(to, GLOW, 80 + strength * 120, 25 + strength * 15);
   g.lights.add(TMP.copy(from).lerp(to, 0.5), GLOW, 40, 30);
   const camD = g.camera.position.distanceTo(to);
@@ -130,8 +136,19 @@ class BoltStrike extends Ability {
     pose(g, 'rest', 'cast');
     setTimeout(() => pose(g, 'rest', 'rest'), 200);
     const t = aim(g, 140, { water: true });
-    const from = bothHands(g, new THREE.Vector3());
-    strike(g, from, t.point, charge, t.normal);
+    const hands = bothHands(g, new THREE.Vector3());
+    // Real lightning comes from the sky: call it down onto the target when
+    // there's open sky above it, otherwise throw it from the hands.
+    const skyFrom = t.point.clone().add(TMP.set((Math.random() - 0.5) * 14, 45 + Math.random() * 15, (Math.random() - 0.5) * 14));
+    const up = TMP2.copy(skyFrom).sub(t.point);
+    const blocked = g.physics.raycast(t.point.clone().addScaledVector(t.normal, 0.3), up.clone().normalize(), up.length(), { exclude: g.player.collider });
+    if (!blocked && t.hit) {
+      // Sparks leap from the hands as the strike is called down.
+      g.particles.emit(FX.electric, hands, 14, { dir: UP, spread: 0.7, speed: [2, 5], sizeMul: 0.2, lifeMul: 0.6 });
+      strike(g, skyFrom, t.point, charge, t.normal);
+    } else {
+      strike(g, hands, t.point, charge, t.normal);
+    }
     if (t.water) g.water.electrify(t.water, 3 + charge * 5, t.point);
     g.hands.kick('both', 0.12 + charge * 0.1);
     g.rig.fovPunch(2 + charge * 3);

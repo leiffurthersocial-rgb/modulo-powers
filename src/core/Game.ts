@@ -714,6 +714,7 @@ export class Game {
     this.entities.updateVisuals(this.camera.position);
     this.particles.budget = this.quality.preset.particleBudget * this.quality.particleScale;
     this.particles.setViewport(this.canvas.height, this.camera.fov);
+    this.bolts.setViewport(this.canvas.height, this.camera.fov);
     this.particles.update(dt);
     this.bolts.update(dt);
     this.decals.update(dt);
