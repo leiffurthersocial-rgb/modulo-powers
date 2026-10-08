@@ -73,7 +73,10 @@ export function registerMachines(game: Game) {
         hum = null;
       }
     };
-    e.onRemove = () => hum?.stop(0.1);
+    e.onRemove = () => {
+      hum?.stop(0.1);
+      bulbMat.dispose();
+    };
     return e;
   });
 
@@ -209,7 +212,7 @@ export function registerMachines(game: Game) {
   em.registerFactory('plate', (s) => {
     const g = new THREE.Group();
     const frame = mesh(boxGeo(2.0, 0.12, 2.0, 0.02), texturedMaterial('stone', { key: 'plateFrame' }));
-    const top = mesh(boxGeo(1.6, 0.12, 1.6, 0.03), plainMaterial('plateTop', { color: 0x8a6a4a, roughness: 0.7 }).clone());
+    const top = mesh(boxGeo(1.6, 0.12, 1.6, 0.03), new THREE.MeshStandardMaterial({ color: 0x8a6a4a, roughness: 0.7 }));
     top.position.y = 0.07;
     top.userData.noVisualState = true;
     g.add(frame, top);
@@ -252,6 +255,7 @@ export function registerMachines(game: Game) {
     };
     e.interact = () => game.toasts.show(e.interactLabel ?? '');
     e.interactLabel = `Pressure plate: needs ${need} kg`;
+    e.onRemove = () => topMat.dispose();
     return e;
   });
 
@@ -387,7 +391,7 @@ export function registerMachines(game: Game) {
     const pivot = new THREE.Group();
     const face = mesh(
       cylGeo(0.6, 0.6, 0.08, 24).clone().rotateX(Math.PI / 2),
-      new THREE.MeshStandardMaterial({ map: targetTexture(), roughness: 0.8 }),
+      targetMaterial(),
     );
     face.position.y = 0.6;
     face.userData.ownsGeometry = true;
@@ -502,6 +506,11 @@ export function registerMachines(game: Game) {
     };
     return e;
   });
+}
+
+let targetMat: THREE.MeshStandardMaterial | null = null;
+function targetMaterial(): THREE.MeshStandardMaterial {
+  return (targetMat ??= new THREE.MeshStandardMaterial({ map: targetTexture(), roughness: 0.8 }));
 }
 
 /** Bullseye texture (shared). */
