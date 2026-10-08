@@ -54,9 +54,20 @@ export class PlayerController {
   crouchT = 0;
   halfHeight = PLAYER.halfHeight;
 
+  /** Combined movement modifiers (mud, ice, armour...). Recomputed each step. */
   speedMul = 1;
   frictionMul = 1;
   gravityMul = 1;
+  private mods = new Map<string, { speed: number; friction: number }>();
+
+  /** Set a named movement modifier (multiplied together with the others). */
+  setModifier(key: string, speed: number, friction = 1) {
+    this.mods.set(key, { speed, friction });
+  }
+
+  clearModifier(key: string) {
+    this.mods.delete(key);
+  }
   /** Ignore walls tagged PHASEABLE. */
   phase = false;
   /** Freeze all movement (used during teleports / digging). */
@@ -209,6 +220,12 @@ export class PlayerController {
       return;
     }
 
+    this.speedMul = 1;
+    this.frictionMul = 1;
+    for (const m of this.mods.values()) {
+      this.speedMul *= m.speed;
+      this.frictionMul *= m.friction;
+    }
     this.setCrouch(input.crouch);
     this.crouchT += ((this.crouching ? 1 : 0) - this.crouchT) * Math.min(1, dt * 12);
 

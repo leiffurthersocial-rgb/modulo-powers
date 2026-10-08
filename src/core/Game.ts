@@ -22,6 +22,17 @@ import { Environment } from '../world/Environment';
 import { registerBasicProps } from '../world/props/basic';
 import { registerDummy } from '../world/props/dummy';
 import { World } from '../world/World';
+import { WaterSystem } from '../world/Water';
+import { BoltRenderer } from '../systems/Bolts';
+import { Decals } from '../systems/Decals';
+import { DestructionSystem } from '../systems/Destruction';
+import { ElectricitySystem } from '../systems/Electricity';
+import { FireSystem } from '../systems/Fire';
+import { LightPool } from '../systems/Lights';
+import { MudSystem } from '../systems/Mud';
+import { FX, ParticleSystem } from '../systems/Particles';
+import { Reactions } from '../systems/Reactions';
+import type { SurfaceKind } from '../config/reactions';
 import { buildHubStatic, spawnHubProps } from '../world/zones/hub';
 import { audio } from './Audio';
 import { Input } from './Input';
@@ -64,6 +75,16 @@ export class Game {
   readonly hud: Hud;
   readonly toasts: Toasts;
   readonly systems: GameSystem[] = [];
+  readonly particles: ParticleSystem;
+  readonly lights: LightPool;
+  readonly decals: Decals;
+  readonly bolts: BoltRenderer;
+  readonly reactions: Reactions;
+  readonly water: WaterSystem;
+  readonly fire: FireSystem;
+  readonly electricity: ElectricitySystem;
+  readonly destruction: DestructionSystem;
+  readonly mud: MudSystem;
   private powerHud: PowerHud;
   private help: HelpOverlay;
   private teleportMenu: TeleportMenu;
@@ -74,6 +95,7 @@ export class Game {
   started = false;
   checkpoint = new THREE.Vector3();
   private tmp = new THREE.Vector3();
+  private tmp2 = new THREE.Vector3();
   private lastDenied = 0;
 
   constructor(
@@ -104,6 +126,25 @@ export class Game {
     registerBasicProps(this.entities);
     registerDummy(this.entities);
     this.checkpoint.copy(this.world.spawn);
+
+    // Effects + simulation systems.
+    this.particles = new ParticleSystem(this.scene);
+    this.particles.groundAt = (x, z) => this.world.heightAt(x, z);
+    this.lights = new LightPool(this.scene, this.quality.preset.maxDynamicLights);
+    this.decals = new Decals(this.scene);
+    this.bolts = new BoltRenderer(this.scene);
+    this.reactions = new Reactions(this);
+    this.water = new WaterSystem(this);
+    this.fire = new FireSystem(this);
+    this.electricity = new ElectricitySystem(this);
+    this.destruction = new DestructionSystem(this);
+    this.mud = new MudSystem(this);
+    this.reactions.surfacesAt = (p, r) => this.surfacesAt(p, r);
+    this.reactions.registerSurfaceEffect('electrifyWater', (c) => {
+      const b = this.water.bodyAt(c, 2) ?? this.water.bodyUnder(c.x, c.z);
+      if (b) this.water.electrify(b, 6, c);
+    });
+    this.systems.push(this.reactions, this.water, this.fire, this.electricity, this.destruction, this.mud);
 
     this.player = new PlayerController(this.physics, this.world.spawn);
     this.rig = new CameraRig(this.camera, this.input, this.physics);
@@ -243,6 +284,7 @@ export class Game {
     this.world.vegetation.setDensity(q.vegetationDensity);
     this.renderer.shadowMap.enabled = q.shadows;
     this.quality.applyPixelRatio();
+    this.lights?.setCount(q.maxDynamicLights);
   }
 
   private onPowerChanged(color: string) {
@@ -349,6 +391,9 @@ export class Game {
     this.powers.reset();
     this.entities.reset();
     for (const s of this.systems) s.reset?.();
+    this.particles.clear();
+    this.bolts.clear();
+    this.decals.reset();
     this.env.setStorm(0);
     if (!silent) this.toasts.show('Map reset');
   }
@@ -386,6 +431,38 @@ export class Game {
     this.toasts.show(`Teleported: ${zone.name}`, zone.color);
   }
 
+  /** Which world surfaces are at a point (for surface reactions). */
+  surfacesAt(p: THREE.Vector3, radius: number): SurfaceKind[] {
+    const out: SurfaceKind[] = [];
+    const body = this.water.bodyUnder(p.x, p.z);
+    if (body && p.y < body.level + radius + 1) out.push('water');
+    const gy = this.world.heightAt(p.x, p.z);
+    if (!body && p.y - gy < radius + 1.2) {
+      out.push('ground');
+      if (this.fire.grassFuel(p.x, p.z) > 0) out.push('grass');
+    }
+    return out;
+  }
+
+  /** Electric shock on the player: flash, shake, a jolt, no lasting harm. */
+  shockPlayer(amount: number, from?: THREE.Vector3) {
+    this.rig.shake(0.25 + amount * 0.5);
+    this.rig.addFlash(0.25 + amount * 0.4);
+    audio.crackle(this.player.curPos, 0.8);
+    const push = this.tmp.set(0, 2 + amount * 3, 0);
+    if (from) push.add(this.tmp2.copy(this.player.curPos).sub(from).setY(0).normalize().multiplyScalar(3 * amount));
+    this.player.addVelocity(push);
+    this.particles.emit(FX.electric, this.player.curPos, 20, { spread: Math.PI, speed: [1, 4], jitter: 0.5 });
+    this.energy.drain(8 * amount);
+  }
+
+  /** Slippery ice underfoot, heat from nearby fire. */
+  private updateGroundEffects() {
+    const ground = this.entities.fromCollider(this.player.groundCollider);
+    if (this.player.grounded && ground && (ground.frozen > 0.5 || ground.mat.id === 'ice')) this.player.setModifier('ice', 1.05, 0.06);
+    else this.player.clearModifier('ice');
+  }
+
   private wirePlayerEvents() {
     const p = this.player;
     p.onLand = (speed) => {
@@ -418,11 +495,15 @@ export class Game {
         budget = 4;
       }
       if (budget <= 0) return;
-      const e = this.entities.fromHandle(h1) ?? this.entities.fromHandle(h2);
+      const e1 = this.entities.fromHandle(h1);
+      const e2 = this.entities.fromHandle(h2);
+      const e = e1?.body?.isDynamic() ? e1 : e2 ?? e1;
       if (!e || !e.body) return;
       budget--;
       const energy = Math.min(1, force / (e.mass * 160));
-      audio.impact(e.center(this.tmp), energy, e.mat.sound);
+      audio.impact(e.center(this.tmp), energy, e.frozen > 0.5 ? 'ice' : e.mat.sound);
+      if (e1) this.destruction.onImpact(e1, force);
+      if (e2) this.destruction.onImpact(e2, force);
     };
   }
 
@@ -455,6 +536,12 @@ export class Game {
     if (dt > 0) this.energy.update(dt);
     for (const s of this.systems) s.update?.(dt, realDt);
     this.entities.updateVisuals();
+    this.particles.budget = this.quality.preset.particleBudget * this.quality.particleScale;
+    this.particles.setViewport(this.canvas.height, this.camera.fov);
+    this.particles.update(dt);
+    this.bolts.update(dt);
+    this.decals.update(dt);
+    this.updateGroundEffects();
 
     const sprinting = active && this.input.isDown('sprint');
     this.rig.update(dt, realDt, this.player, sprinting);
@@ -479,6 +566,7 @@ export class Game {
   }
 
   private render() {
+    this.lights.flush(this.camera);
     this.renderer.render(this.scene, this.camera);
   }
 }

@@ -82,6 +82,8 @@ export class Entity {
   interactLabel?: string;
   /** Called when the entity is removed from the world. */
   onRemove?: () => void;
+  /** Called when a burning entity runs out of fuel. Default: small props crumble. */
+  onBurnout?: () => void;
   /** Called when integrity reaches zero. Default: shatter/collapse via Destruction. */
   onBreak?: () => void;
 
@@ -94,7 +96,10 @@ export class Entity {
     if (this.mat.brittle) this.tags.add('brittle');
     this.object = object;
     this.visual = new EntityVisual(object);
-    if (this.mat.id === 'ice') this.frozen = 1;
+    if (this.mat.id === 'ice') {
+      this.frozen = 1;
+      this.temperature = -5;
+    }
   }
 
   /** World-space centre (body translation, or object position for static entities). */
@@ -150,6 +155,8 @@ export class Entity {
  */
 export class EntityVisual {
   private meshes: THREE.Mesh[] = [];
+  /** The first mesh's original (shared) material, e.g. for debris. */
+  baseMaterial: THREE.Material | null = null;
   private own = false;
   private base: { color: THREE.Color; rough: number; emissive: THREE.Color; emissiveIntensity: number }[] = [];
   private mats: THREE.MeshStandardMaterial[] = [];
@@ -162,6 +169,8 @@ export class EntityVisual {
       const m = o as THREE.Mesh;
       if (m.isMesh && !m.userData.noVisualState) this.meshes.push(m);
     });
+    const first = this.meshes[0];
+    if (first) this.baseMaterial = Array.isArray(first.material) ? first.material[0] : first.material;
   }
 
   private ensureOwn() {

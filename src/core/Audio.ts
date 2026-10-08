@@ -356,6 +356,74 @@ export class AudioEngine {
     }
   }
 
+  /** Steam / sizzle. */
+  hiss(pos: Vec3 | undefined, v = 0.5) {
+    this.noiseBurst({ pos, volume: 0.35 * v, attack: 0.02, decay: 0.6, filter: 'highpass', freq: 3500, freqEnd: 5000, ref: 8 });
+  }
+
+  /** Electric crackle: a few very short high bursts. */
+  crackle(pos: Vec3 | undefined, v = 0.5) {
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      this.noiseBurst({ pos, volume: v * (0.3 + Math.random() * 0.4), decay: 0.015 + Math.random() * 0.03, filter: 'highpass', freq: 2500 + Math.random() * 3000, delay: Math.random() * 0.12, ref: 7 });
+    }
+    this.tone({ pos, volume: v * 0.12, type: 'sawtooth', freq: 110 + Math.random() * 40, decay: 0.12, ref: 7 });
+  }
+
+  /** Fire catching. */
+  ignite(pos: Vec3, v = 0.6) {
+    this.noiseBurst({ pos, volume: 0.5 * v, attack: 0.05, decay: 0.7, filter: 'lowpass', freq: 600, freqEnd: 2200, brown: true, ref: 8 });
+  }
+
+  /** Something breaking apart. */
+  shatter(pos: Vec3, material: 'wood' | 'stone' | 'metal' | 'ice' | 'generic', v = 1) {
+    switch (material) {
+      case 'ice':
+        for (let i = 0; i < 5; i++) this.tone({ pos, volume: 0.15 * v, freq: 1800 + Math.random() * 2500, decay: 0.1 + Math.random() * 0.2, delay: Math.random() * 0.08, type: 'sine', ref: 10 });
+        this.noiseBurst({ pos, volume: 0.6 * v, decay: 0.3, filter: 'highpass', freq: 3000, ref: 10 });
+        break;
+      case 'wood':
+        this.noiseBurst({ pos, volume: 0.8 * v, decay: 0.35, filter: 'bandpass', freq: 600, q: 1.2, ref: 10 });
+        this.noiseBurst({ pos, volume: 0.5 * v, decay: 0.2, filter: 'bandpass', freq: 1500, delay: 0.05, ref: 10 });
+        break;
+      case 'metal':
+        this.tone({ pos, volume: 0.4 * v, freq: 300, decay: 0.9, type: 'triangle', ref: 12 });
+        this.noiseBurst({ pos, volume: 0.6 * v, decay: 0.3, filter: 'highpass', freq: 2000, ref: 12 });
+        break;
+      default:
+        this.noiseBurst({ pos, volume: 1.0 * v, decay: 0.5, freq: 1400, freqEnd: 150, brown: true, ref: 12 });
+        this.noiseBurst({ pos, volume: 0.4 * v, decay: 0.25, filter: 'highpass', freq: 2500, ref: 12 });
+    }
+  }
+
+  /** Air movement. */
+  whoosh(pos: Vec3 | undefined, v = 0.5, high = 1) {
+    this.noiseBurst({ pos, volume: 0.4 * v, attack: 0.08, decay: 0.35, filter: 'bandpass', freq: 400 * high, freqEnd: 1400 * high, q: 1.5, ref: 8 });
+  }
+
+  /** Deep rumble (earth, explosions). */
+  rumble(pos: Vec3 | undefined, v = 1, dur = 1.2) {
+    this.noiseBurst({ pos, volume: v, attack: 0.05, decay: dur, filter: 'lowpass', freq: 220, freqEnd: 40, brown: true, ref: 20 });
+    this.tone({ pos, volume: v * 0.4, type: 'sine', freq: 48, freqEnd: 28, decay: dur, ref: 20 });
+  }
+
+  /** Explosion: thump + crackle tail. */
+  explosion(pos: Vec3, v = 1) {
+    this.noiseBurst({ pos, volume: 1.2 * v, attack: 0.005, decay: 1.1, filter: 'lowpass', freq: 2400, freqEnd: 60, brown: true, ref: 18 });
+    this.tone({ pos, volume: 0.8 * v, type: 'sine', freq: 90, freqEnd: 30, decay: 0.6, ref: 18 });
+    this.noiseBurst({ pos, volume: 0.4 * v, decay: 0.8, filter: 'highpass', freq: 1800, delay: 0.08, ref: 18 });
+  }
+
+  /** Thunder: crack now, rolling rumble after a distance-based delay. */
+  thunder(pos: Vec3, v = 1) {
+    const d = Math.sqrt((pos.x - this.lx) ** 2 + (pos.y - this.ly) ** 2 + (pos.z - this.lz) ** 2);
+    const delay = Math.min(3, d / 343);
+    const near = Math.max(0.2, 1 - d / 250);
+    this.noiseBurst({ volume: 0.9 * v * near, attack: 0.002, decay: 0.25, filter: 'highpass', freq: 1200, delay: delay * 0.5 });
+    this.noiseBurst({ volume: 1.3 * v * near, attack: 0.01, decay: 0.5, filter: 'lowpass', freq: 3000, freqEnd: 200, brown: true, delay });
+    this.noiseBurst({ volume: 1.0 * v * Math.max(0.4, near), attack: 0.3, decay: 2.8, filter: 'lowpass', freq: 400, freqEnd: 50, brown: true, delay: delay + 0.15 });
+  }
+
   uiClick(high = false) {
     this.tone({ volume: 0.12, freq: high ? 1100 : 760, decay: 0.06, type: 'triangle' });
   }
