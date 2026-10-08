@@ -8,6 +8,8 @@ export class Hud {
   readonly root: HTMLElement;
   private stats: HTMLElement;
   private flash: HTMLElement;
+  private underwater: HTMLElement;
+  private underwaterLevel = -1;
   private statsTimer = 0;
   private frames = 0;
   showStats = true;
@@ -17,6 +19,7 @@ export class Hud {
     this.root.style.position = 'absolute';
     this.root.style.inset = '0';
     this.flash = el('div', 'flash', '', this.root);
+    this.underwater = el('div', 'underwater', '', this.root);
     el('div', 'crosshair', '<div class="dot"></div>', this.root);
     el('div', 'hint', 'Press <kbd>H</kbd> for help', this.root);
     this.stats = el('div', 'stats', '', this.root);
@@ -29,6 +32,12 @@ export class Hud {
   setFlash(level: number, color = '#ffffff') {
     this.flash.style.opacity = String(Math.min(0.85, level));
     this.flash.style.background = color;
+  }
+
+  setUnderwater(level: number) {
+    if (level === this.underwaterLevel) return;
+    this.underwaterLevel = level;
+    this.underwater.style.opacity = String(level);
   }
 
   /** Update the FPS readout about twice a second. */

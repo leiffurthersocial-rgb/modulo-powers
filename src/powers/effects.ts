@@ -45,7 +45,7 @@ export function explosion(game: Game, pos: THREE.Vector3, o: ExplosionOpts) {
     const k = 1 - dist / (o.radius * 1.2);
     dp.normalize();
     dp.y = Math.max(dp.y, 0.35);
-    dp.normalize().multiplyScalar(o.playerPush * k);
+    dp.normalize().multiplyScalar(o.playerPush * k * (g.shielded ? 0.4 : 1));
     g.player.thrust(dp);
   }
   // Camera feedback by distance.

@@ -109,8 +109,18 @@ export class Environment {
       this.sun.shadow.map = null as unknown as THREE.WebGLRenderTarget;
     }
     this.shadowTexel = (q.shadowExtent * 2) / q.shadowMapSize;
+    this.viewDistance = q.viewDistance;
     this.fog.far = q.viewDistance;
     this.fog.near = q.viewDistance * 0.3;
+  }
+
+  private viewDistance = 500;
+
+  /** Restore fog after an override (e.g. leaving the water). */
+  restoreFog() {
+    this.fog.far = this.viewDistance;
+    this.fog.near = this.viewDistance * 0.3;
+    this.applyLighting();
   }
 
   setNight(night: boolean, instant = false) {

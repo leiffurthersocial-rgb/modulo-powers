@@ -237,3 +237,30 @@ function tileNoiseLine(f: Float32Array, size: number, x: number, y: number): num
   for (let k = -3; k <= 3; k++) s += f[y * size + ((x + k * 9 + size * 4) % size)];
   return s / 7;
 }
+
+/** Tileable ripple normal map for water surfaces. */
+export function waterNormalTexture(size = 256): THREE.CanvasTexture {
+  const h1 = tileableNoise(size, 4, 911, 8);
+  const h2 = tileableNoise(size, 3, 912, 24);
+  const height = new Float32Array(size * size);
+  for (let i = 0; i < height.length; i++) height[i] = h1[i] * 0.7 + h2[i] * 0.3;
+  return canvasTexture(size, (img) => {
+    const strength = 6;
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const l = height[y * size + ((x - 1 + size) % size)];
+        const r = height[y * size + ((x + 1) % size)];
+        const d = height[((y - 1 + size) % size) * size + x];
+        const u = height[((y + 1) % size) * size + x];
+        const nx = (l - r) * strength;
+        const ny = (d - u) * strength;
+        const len = Math.hypot(nx, ny, 1);
+        const i = (y * size + x) * 4;
+        img.data[i] = ((nx / len) * 0.5 + 0.5) * 255;
+        img.data[i + 1] = ((ny / len) * 0.5 + 0.5) * 255;
+        img.data[i + 2] = ((1 / len) * 0.5 + 0.5) * 255;
+        img.data[i + 3] = 255;
+      }
+    }
+  });
+}

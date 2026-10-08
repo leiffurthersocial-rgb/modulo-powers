@@ -76,6 +76,8 @@ export class PlayerController {
   noGravity = false;
   /** Swimming: set by the water system. */
   inWater = 0;
+  /** When set, the player can't sink below this height (water-walking). */
+  waterFloor: number | null = null;
 
   /** Events for camera/audio. */
   onLand: ((impactSpeed: number) => void) | null = null;
@@ -340,6 +342,17 @@ export class PlayerController {
     }
 
     this.curPos.set(this.curPos.x + mv.x, this.curPos.y + mv.y, this.curPos.z + mv.z);
+    if (this.waterFloor !== null) {
+      const feetY = this.curPos.y - this.halfHeight - PLAYER.radius;
+      if (feetY < this.waterFloor && v.y <= 0.5) {
+        this.curPos.y += this.waterFloor - feetY;
+        if (!this.grounded && this.lastFallSpeed > 1.5) this.onLand?.(this.lastFallSpeed);
+        v.y = Math.max(0, v.y);
+        this.grounded = true;
+        this.airTime = 0;
+        this.jumping = false;
+      }
+    }
     this.body.setNextKinematicTranslation({ x: this.curPos.x, y: this.curPos.y, z: this.curPos.z });
 
     // Footsteps.

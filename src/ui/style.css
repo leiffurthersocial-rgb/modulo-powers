@@ -601,3 +601,11 @@ kbd {
     width: 230px;
   }
 }
+
+.underwater {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(20, 90, 110, 0.15), rgba(4, 30, 45, 0.55));
+  transition: opacity 0.15s;
+}

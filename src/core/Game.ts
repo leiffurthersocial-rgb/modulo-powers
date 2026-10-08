@@ -23,6 +23,7 @@ import { registerBasicProps } from '../world/props/basic';
 import { registerDummy } from '../world/props/dummy';
 import { World } from '../world/World';
 import { WaterSystem } from '../world/Water';
+import { WaterRenderer } from '../world/WaterRenderer';
 import { BoltRenderer } from '../systems/Bolts';
 import { Decals } from '../systems/Decals';
 import { DestructionSystem } from '../systems/Destruction';
@@ -87,6 +88,9 @@ export class Game {
   readonly destruction: DestructionSystem;
   readonly mud: MudSystem;
   readonly projectiles: ProjectileSystem;
+  readonly waterRenderer: WaterRenderer;
+  /** True while the Hydro Shield is up (set by the Water power). */
+  shielded = false;
   private powerHud: PowerHud;
   private help: HelpOverlay;
   private teleportMenu: TeleportMenu;
@@ -142,12 +146,13 @@ export class Game {
     this.destruction = new DestructionSystem(this);
     this.mud = new MudSystem(this);
     this.projectiles = new ProjectileSystem(this);
+    this.waterRenderer = new WaterRenderer(this);
     this.reactions.surfacesAt = (p, r) => this.surfacesAt(p, r);
     this.reactions.registerSurfaceEffect('electrifyWater', (c) => {
       const b = this.water.bodyAt(c, 2) ?? this.water.bodyUnder(c.x, c.z);
       if (b) this.water.electrify(b, 6, c);
     });
-    this.systems.push(this.reactions, this.water, this.fire, this.electricity, this.destruction, this.mud, this.projectiles);
+    this.systems.push(this.reactions, this.water, this.fire, this.electricity, this.destruction, this.mud, this.projectiles, this.waterRenderer);
 
     this.player = new PlayerController(this.physics, this.world.spawn);
     this.rig = new CameraRig(this.camera, this.input, this.physics);
@@ -449,6 +454,10 @@ export class Game {
 
   /** Electric shock on the player: flash, shake, a jolt, no lasting harm. */
   shockPlayer(amount: number, from?: THREE.Vector3) {
+    if (this.shielded) {
+      audio.crackle(this.player.curPos, 0.3);
+      return;
+    }
     this.rig.shake(0.25 + amount * 0.5);
     this.rig.addFlash(0.25 + amount * 0.4);
     audio.crackle(this.player.curPos, 0.8);
